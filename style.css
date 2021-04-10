@@ -1,0 +1,55 @@
+.navbar-login
+{
+    width: 305px;
+    padding: 10px;
+    padding-bottom: 0px;
+}
+
+.navbar-login-session
+{
+    padding: 10px;
+    padding-bottom: 0px;
+    padding-top: 0px;
+}
+
+.icon-size
+{
+    font-size: 87px;
+}
+
+.icon-size-plus
+{
+    font-size: 15px;
+}
+
+.dropdown-toggle::after {
+    content: none;
+}
+
+.glyphicon-plus:hover{
+    transition: 0.8s;
+    transform: rotateX(180deg);
+}
+
+.emoticons{
+    font-size: 25px;
+}
+
+table {
+    border-collapse: collapse;
+    max-width:min-content;
+  }
+  
+table tbody tr td {
+    word-wrap: break-word;
+    max-width:min-content;
+  }
+
+.ribbon{
+    border:       10px solid royalblue;        /* All borders set */
+    border-left:  5;                      /* Remove left border */
+    border-right: 30px solid transparent; /* Right transparent */
+    width:        200px;                  /* Increase element Width */
+  }
+
+input[type="text"], textarea { background-color: royalblue; border: none;}
