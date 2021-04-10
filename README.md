@@ -5,6 +5,7 @@
 ### Páginas 
 
 page -> página de visualização do vídeo "em tempo real"
+
 myvideos -> página com os vídeos associados a uma conta
 
 TODO:
