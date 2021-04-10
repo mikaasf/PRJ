@@ -12,7 +12,7 @@ class Camera (threading.Thread):
         
         self.__cam: cv2.VideoCapture = cv2.VideoCapture(video_src, cv2.CAP_DSHOW)
         self.__frame_rate: int = frame_rate
-        self.__prev: float = 0
+        self.__prev: float = 0.
         self.__thread_lock: threading.Lock = thread_lock
         
         self.__frames: list = []
