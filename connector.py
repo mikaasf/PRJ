@@ -1,7 +1,7 @@
 import numpy as np
 import threading
 import time
-from camera_2 import Camera
+from camera import Camera
 
 
 class Connector (threading.Thread):
@@ -42,5 +42,8 @@ if __name__ == '__main__':
     
     camera.start()
     con.start()
+    
+    camera.join()
+    con.join()
     
     print("Exiting Main Thread")
