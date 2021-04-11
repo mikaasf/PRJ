@@ -6,9 +6,10 @@ from camera import Camera
 
 class Connector (threading.Thread):
     
-    def __init__(self, cam: Camera):
+    def __init__(self, cam: Camera, semaphore: threading.Semaphore):
         
         threading.Thread.__init__(self)
+        self.__semaphore: threading.Semaphore = semaphore
         self.__cam: Camera = cam
         self.__cam_frames: list = []
         
@@ -20,25 +21,26 @@ class Connector (threading.Thread):
     
     def get_frames(self):
         while True:
-
-            self.__cam_frames = self.__cam.frames
-            if len(self.__cam_frames) > 50:
+            
+            
+            if self.__cam.is_alive():
+                self.__semaphore.acquire()
+                self.__cam_frames = self.__cam.frames
                 self.__cam.clear_frames()
-            print("Connector array size: " + str(len(self.__cam_frames)))
-            print("image mem size: %d kB" % (np.array(self.__cam_frames).nbytes // 1000))
-            time.sleep(1)
+                print("Connector array size: " + str(len(self.__cam_frames)))
+                print("image mem size: %d kB" % (np.array(self.__cam_frames).nbytes // 1000))
 
-            if not self.__cam.is_alive():
+            else:
                 print("Releasing connector...")
                 break
 
 
 if __name__ == '__main__':
     
-    thread_lock = threading.Lock()
+    s = threading.Semaphore(value=0)
     
-    camera = Camera(video_src=0, thread_lock=thread_lock)
-    con = Connector(cam=camera)
+    camera = Camera(video_src=0, semaphore=s)
+    con = Connector(cam=camera, semaphore=s)
     
     camera.start()
     con.start()

@@ -7,13 +7,14 @@ import threading
 class Camera (threading.Thread):
     
     
-    def __init__(self, video_src: int, thread_lock: threading.Lock, frame_rate: int=30):
+    def __init__(self, video_src: int, semaphore: threading.Semaphore,
+                 frame_rate: int=30):
         threading.Thread.__init__(self)
         
         self.__cam: cv2.VideoCapture = cv2.VideoCapture(video_src, cv2.CAP_DSHOW)
         self.__frame_rate: int = frame_rate
         self.__prev: float = 0.
-        self.__thread_lock: threading.Lock = thread_lock
+        self.__semaphore: threading.Semaphore = semaphore
         
         self.__frames: list = []
     
@@ -37,10 +38,12 @@ class Camera (threading.Thread):
                 
                 self.__prev = time.time()
                 
-                self.__thread_lock.acquire()
+                # self.__thread_lock.acquire()
                 self.__frames.append(img)
-                # print("Camera array size: " + str(len(self.__frames)))
-                self.__thread_lock.release()
+                # self.__thread_lock.release()
+                
+                if len(self.__frames) >= 50:
+                    self.__semaphore.release()
 
                 if flag:
                     cv2.imshow('Video', img)
@@ -51,6 +54,7 @@ class Camera (threading.Thread):
                 print("Releasing camera...")
                 cv2.destroyAllWindows()
                 self.__cam.release()
+                self.__semaphore.release()
                 break
     
     
@@ -60,14 +64,3 @@ class Camera (threading.Thread):
     
     def clear_frames(self) -> None:
         self.__frames = []
-
-
-if __name__ == '__main__':
-    
-    thread_lock = threading.Lock()
-    camera = Camera(video_src=0, thread_lock=thread_lock)
-    camera.start()
-    
-    
-    camera.join()
-    print("Exiting Main Thread")
