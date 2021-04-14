@@ -37,10 +37,7 @@ class Camera (threading.Thread):
             if time_elapsed > 1. / self.__frame_rate:
                 
                 self.__prev = time.time()
-                
-                # self.__thread_lock.acquire()
                 self.__frames.append(img)
-                # self.__thread_lock.release()
                 
                 if len(self.__frames) >= 50:
                     self.__semaphore.release()
