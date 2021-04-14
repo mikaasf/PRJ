@@ -17,7 +17,7 @@
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
-  <title>My Videos - Video Annotation</title>
+  <title>Video - Video Annotation</title>
 </head>
 
 <body>
@@ -33,8 +33,8 @@
 
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
       <ul class="nav navbar-nav mr-auto mx-auto">
-        <li class="nav-item active">
-          <a class="nav-link" href="#">My Videos <span class="sr-only">(current)</span></a>
+        <li class="nav-item">
+          <a class="nav-link" href="myvideos.html">My Videos</a>
         </li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
@@ -89,49 +89,73 @@
 
   <br>
   <br>
-<section class="col-9 mx-auto">
-  <div class="card-deck" style="min-height: 250px;">
-    <div class="card">
-      <a href="page.html">
+  <!-- 16:9 aspect ratio 
+<div class="embed-responsive embed-responsive-16by9">
+  //<iframe class="embed-responsive-item"></iframe>iframe
+  <video>
 
-      <img class="card-img-top" src="..." alt="Card image cap" id="card_img_1">
-      <div class="card-body">
-        <h5 class="card-title" id="title">Card title</h5>
-        <p class="card-text" id="description">Description...</p>
-      </div>
-      <div class="card-footer">
-        <small class="text-muted">Last updated <span id="time">3 mins </span>ago</small>
-      </div>
-    </a>
-    </div>
-    <div class="card">
-      <a href="page.html">
+  </video>
+</div> -->
 
-      <img class="card-img-top" src="..." alt="Card image cap" id="card_img_2">
-      <div class="card-body">
-        <h5 class="card-title" id="title">Card title</h5>
-        <p class="card-text" id="description">Description...</p>
-      </div>
-      <div class="card-footer">
-        <small class="text-muted">Last updated <span id="time">3 mins </span>ago</small>
-      </div>
-    </a>
-    </div>
-    <div class="card">
-      <a href="page.html">
+  <section>
+    <section style="float: left; margin: 0 1.5%; width: 63%;">
+      <h3 id="vid_title">Video Title <button class="notRec rec-button"></button></h3>
 
-      <img class="card-img-top" src="..." alt="Card image cap" id="card_img_3">
-      <div class="card-body">
-        <h5 class="card-title" id="title">Card title</h5>
-        <p class="card-text" id="description">Description...</p>
-      </div>
-      <div class="card-footer">
-        <small class="text-muted">Last updated <span id="time">3 mins </span>ago</small>
-      </div>
-    </a>
+      <video class="col-12">
+
+      </video>
+      <div>
+        <p><img src="imgs/heartRate.png" style="width: 30px; height: 30px;"> <span id="heart_rate"> -- </span> bpm
+          &nbsp;&nbsp;
+          <img src="imgs/waterDrop.png" style="width: 30px; height: 30px;"> <span id="heart_rate"> -- </span>
+        </p>
+      </div>&nbsp;&nbsp;
+      <section style="float: right;">
+        <p>
+        <h4>
+          🕒 <span id="date"> ------- </span>
+        </h4>
+        <br />
+        <h4>
+          📍 <span id="place"> ------- </span>
+        </h4>
+
+        </p>
+
+      </section>
+    </section>
+
+    <aside class="mr-5" style="float: right; margin: 0 1.5%; width: 30%;">
+      <h3>Annotations</h3>
+      <table class="table d-sm-table-cell">
+        <tbody>
+          <tr class="table-light">
+            <td><button id="happy" class="emoticons">🙂</button></td>
+            <td><button id="sleepy" class="emoticons">😴</button></td>
+            <td><button id="surprised" class="emoticons">😯</button></td>
+          </tr>
+          <tr class="table-light">
+            <td><button id="sad" class="emoticons">😔</button></td>
+            <td><button id="angry" class="emoticons">😠</button></td>
+            <td><button id="thinking" class="emoticons">🤔</button></td>
+          </tr>
+        </tbody>
+        <table class="table">
+          <tbody>
+            <tr>
+              <td>
+                <div class="ribbon">
+                  <input id="tag" type="text" class="mx-auto" placeholder="Type here..."
+                    style="-webkit-text-fill-color:blanchedalmond;">
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+    </aside>
+    <div>
     </div>
-  </div>
-</section>
+  </section>
 </body>
 
 </html>
