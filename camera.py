@@ -39,8 +39,11 @@ class Camera (threading.Thread):
                 self.__prev = time.time()
                 self.__frames.append(img)
                 
-                if len(self.__frames) >= 50:
+                if len(self.__frames) >= 30:
                     self.__semaphore.release()
+                    cv2.destroyAllWindows()
+                    self.__cam.release()
+                    break
 
                 if flag:
                     cv2.imshow('Video', img)
