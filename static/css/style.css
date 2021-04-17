@@ -1,15 +1,12 @@
 .navbar-login
 {
     width: 305px;
-    padding: 10px;
-    padding-bottom: 0px;
+    padding: 10px 10px 0px;
 }
 
 .navbar-login-session
 {
-    padding: 10px;
-    padding-bottom: 0px;
-    padding-top: 0px;
+    padding: 0px 10px;
 }
 
 .icon-size
