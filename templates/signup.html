@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Video Annotation - Sign Up Form by Colorlib</title>
+    <link rel="icon" href="../static/imgs/eyeLogo.png">
+    <link rel="stylesheet" href="../static/css/styleregister.css">
+</head>
+<body>
+<div class="main">
+
+    <section class="signup">
+        <div class="container">
+            <div class="signup-content">
+                <div class="signup-form">
+                    <h2 class="form-title">Sign up</h2>
+                    <form method="POST" class="register-form" id="register-form">
+                        <div class="form-group">
+                            <label for="name"></label>
+                            <input type="text" name="name" id="name" placeholder="Your Name">
+                        </div>
+                        <div class="form-group">
+                            <label for="email"></label>
+                            <input type="email" name="email" id="email" placeholder="Your Email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="pass"></label>
+                            <input type="password" name="pass" id="pass" placeholder="Password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="re_pass"></label>
+                            <input type="password" name="re_pass" id="re_pass" placeholder="Repeat your password" onkeydown=hide_error() required>
+                        </div>
+                        <div class="form-group">
+                            <input type="checkbox" name="agree-term" id="agree-term" class="agree-term" required>
+                            <label for="agree-term" class="label-agree-term"><span><span></span></span>I agree all
+                                statements in <a href="#" class="term-service">Terms of service</a></label>
+                        </div>
+                        <div id="error" style="visibility: visible">
+                        {% if error %}
+
+                        <p id="error_log" style="color: red">
+                            {{ error }}
+                        </p>
+                        {% endif %}
+                        </div>
+
+                        <div class="form-group form-button">
+                            <input type="submit" name="signup" id="signup" class="form-submit" value="Register">
+                        </div>
+                    </form>
+                </div>
+                <div class="signup-image">
+                    <figure><img src="../static/imgs/signup-image.jpg" alt="sing up image"></figure>
+                    <a href="{{ url_for('login')}}" class="signup-image-link">I am already member</a>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+<script>
+    function hide_error(){
+        document.getElementById("error").style.visibility = "hidden";
+    }
+    window.onload
+    {
+            document.getElementById("pass").innerHTML = "";
+            document.getElementById("re_pass").innerHTML = "";
+    }
+</script>
+</body>
+</html>

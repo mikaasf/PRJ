@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="icon" href="../static/imgs/eyeLogo.png">
   <link rel="stylesheet" href="../static/css/style.css">
      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
     integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
@@ -34,7 +33,7 @@
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
       <ul class="nav navbar-nav mr-auto mx-auto">
 
-        {% if page == 'on_rec' %}
+        {% if page != 'myvideos' %}
 
         <li class="nav-item">
           <a class="nav-link" href="{{ url_for('myvideos') }}">My Videos</a>
@@ -67,7 +66,7 @@
         <li class="dropdown">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown">
             <span class="glyphicon glyphicon-user"></span> 
-            <strong id="username">Username</strong>
+            <strong id="username">{{ name }}</strong>
             <span class="glyphicon glyphicon-chevron-down"></span>
           </a>
           <ul class="dropdown-menu">
@@ -95,7 +94,7 @@
                 <div class="row">
                   <div class="col-lg-12">
                     <p>
-                      <a href="#" class="btn btn-danger btn-block">Logout</a>
+                      <a href="{{ url_for('logout') }}" class="btn btn-danger btn-block">Logout</a>
                     </p>
                   </div>
                 </div>
