@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+
+{% block head %}
+<title>My Videos - Video Annotation</title>
+{% endblock %}
+
+
+{% block body %}
+
+<section class="col-9 mx-auto">
+  <div class="card-deck" style="min-height: 250px;">
+
+    <!-- todo add a for cycle here -->
+    <div class="card col-md-3">
+      <a href="{{ url_for('after_recording') }}">
+
+      <img class="card-img-top" src="..." alt="Card image cap" id="card_img_1">
+      <div class="card-body">
+        <h5 class="card-title" id="title">Card title</h5>
+        <p class="card-text" id="description">Description...</p>
+      </div>
+      <div class="card-footer">
+        <small class="text-muted">Last updated <span id="time">3 mins </span>ago</small>
+      </div>
+    </a>
+    </div>
+     </a>
+    </div>
+  </div>
+</section>
+{% endblock %}
