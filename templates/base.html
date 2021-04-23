@@ -16,6 +16,8 @@
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+  <link rel="icon" href="../static/imgs/eyeLogo.png">
+
     {% block head %}{% endblock %}
 </head>
 <body>
@@ -66,7 +68,7 @@
         <li class="dropdown">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown">
             <span class="glyphicon glyphicon-user"></span> 
-            <strong id="username">{{ name }}</strong>
+            <strong id="username">{{ name[0] }}</strong>
             <span class="glyphicon glyphicon-chevron-down"></span>
           </a>
           <ul class="dropdown-menu">
@@ -79,10 +81,10 @@
                     </p>
                   </div>
                   <div class="col-lg-8">
-                    <p class="text-left" id="name"><strong>Name</strong></p>
-                    <p class="text-left small" id="email">email@email.com</p>
+                    <p class="text-left" id="name"><strong>{{ name[0] }}</strong></p>
+                    <p class="text-left small" id="email">{{ name[1] }}</p>
                     <p class="text-left">
-                      <a href="#" class="btn btn-primary btn-block btn-sm">Update Data</a>
+                      <a href="{{ url_for('update_profile') }}" class="btn btn-primary btn-block btn-sm">Update Data</a>
                     </p>
                   </div>
                 </div>
