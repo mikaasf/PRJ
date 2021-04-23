@@ -3,45 +3,45 @@ SET GLOBAL max_allowed_packet = 64 * 1048576; # 64 MB
 
 drop table if exists person, video, annotation, videoAnnotation, frame;
 
-CREATE TABLE person (
-    username VARCHAR(100) PRIMARY KEY,
-    password VARCHAR(30) NOT NULL,
-    adm BIT NOT NULL,
+CREATE TABLE IF NOT EXISTS person (
+    username VARCHAR(20) PRIMARY KEY,
+    password VARCHAR(250) NOT NULL,
+    email VARCHAR(40) NOT NULL UNIQUE,
+    adm boolean NOT NULL,
     CONSTRAINT chk_username CHECK (NOT username REGEXP '[^a-z] \'àáãâéêíóõôúçñ-]'),
     CONSTRAINT chk_password CHECK (CHAR_LENGTH(password) > 5)
-);
+) ENGINE=InnoDB default CHARSET=utf8mb4;
 
-CREATE TABLE video (
+CREATE TABLE IF NOT EXISTS video (
 	idVideo int primary key auto_increment,
     uploadDate DATETIME NOT NULL,
     title VARCHAR(70) NOT NULL,
-    username VARCHAR(100) NOT NULL,
+    username VARCHAR(20) NOT NULL,
+    pathName VARCHAR(150) NOT NULL,
     CONSTRAINT fk_video FOREIGN KEY (username)
         REFERENCES person (username)
-);
+) ENGINE=InnoDB default CHARSET=utf8mb4;
 
-CREATE TABLE frame (
+CREATE TABLE IF NOT EXISTS frame (
 	idFrame int primary key auto_increment,
     idVideo int,
     image MEDIUMBLOB,
 	CONSTRAINT fk_frame FOREIGN KEY (idVideo)
         REFERENCES video (idVideo)
-);
+) ENGINE=InnoDB default CHARSET=utf8mb4;
 
-CREATE TABLE annotation (
+CREATE TABLE IF NOT EXISTS annotation (
     emotionType tinyint primary key,
-    feeling VARCHAR(100) NOT NULL,
+    feeling VARCHAR(50) NOT NULL,
     icon MEDIUMBLOB
-);
+) ENGINE=InnoDB default CHARSET=utf8mb4;
 
-CREATE TABLE videoAnnotation (
+CREATE TABLE IF NOT EXISTS videoAnnotation (
     emotionType tinyint,
 	idFrame int,
-    custonText VARCHAR(80) NOT NULL,
-    heartbeatRate int,
+    customText VARCHAR(80),
 	CONSTRAINT fk_videoAnnotation_frame FOREIGN KEY (idFrame)
         REFERENCES frame (idFrame),
 	CONSTRAINT fk_videoAnnotation_annotation FOREIGN KEY (emotionType)
         REFERENCES annotation (emotionType)
-);
-
+) ENGINE=InnoDB default CHARSET=utf8mb4;
