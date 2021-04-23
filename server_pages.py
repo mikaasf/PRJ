@@ -1,33 +1,100 @@
+import re
 import secrets
-
+from urllib.parse import urlparse, urljoin
+import flask
 from flask import Flask, render_template, request, redirect, url_for, make_response, session
-import mysqlx
-# from flask.ext.mysql import MySQL
-from datetime import datetime
+from flaskext.mysql import MySQL
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = secrets.token_bytes(16)
 
-
-# db = MySQL()
-
 # MySQL configurations
-# app.config['MYSQL_DATABASE_USER'] = 'jay'
-# app.config['MYSQL_DATABASE_PASSWORD'] = 'jay'
-# app.config['MYSQL_DATABASE_DB'] = 'BucketList'
-# app.config['MYSQL_DATABASE_HOST'] = 'localhost'
-# db.init_app(app)
+app.config['MYSQL_DATABASE_USER'] = 'root'
+app.config['MYSQL_DATABASE_PASSWORD'] = 'pass'
+app.config['MYSQL_DATABASE_DB'] = 'projeto'
+app.config['MYSQL_DATABASE_HOST'] = 'localhost'
+
+
+db = MySQL()
+db.init_app(app)
+db_con = db.connect()
+
+
+def get_cursor_db():
+    db_con.autocommit(True)
+    return db_con.cursor()
+
+
+def execute_one_query(query, params=None, fetchall=False):
+    try:
+        cursor = get_cursor_db()
+        cursor.execute(query, params)
+        if fetchall:
+            result = cursor.fetchall()
+        else:
+            result = cursor.fetchone()
+        db_con.commit()
+        cursor.close()
+        print(query)
+    except Exception as e:
+        print("Problem inserting into db: " + str(e))
+        return False
+    return result
+
+
+def insert(query, params=None):
+    try:
+        cursor = get_cursor_db()
+        result = cursor.execute(query, params)
+        db_con.commit()
+        cursor.close()
+        print(query)
+    except Exception as e:
+        print("Problem inserting into db: " + str(e))
+        return False
+    return result
+
+
+def is_safe_url(target):
+    ref_url = urlparse(request.host_url)
+    test_url = urlparse(urljoin(request.host_url, target))
+    return test_url.scheme in ('http', 'https') and ref_url.netloc == test_url.netloc
 
 
 @app.route('/login', methods=['POST', 'GET'])
 def login():
+    if 'username' in session:
+        return redirect(url_for('myvideos'))
     error = None
     if request.method == 'POST':
-        if valid_login(request.form['your_name'],
-                       request.form['your_pass']):
-            return log_the_user_in(request.form['your_name'])
-        elif request.form['your_pass'] is not "":
-            error = 'Invalid username/password'
+        username = request.form['your_name']
+        password = request.form['your_pass']
+        remember = request.form['remember-me']
+        if 'username' in request.cookies:
+            username = request.cookies.get('username')
+            password = request.cookies.get('password')
+            print("From cookies")
+            if valid_login(username, password):
+                if not is_safe_url(request.args.get('next')):
+                    flask.abort(400)
+                print("Logged in!")
+                return log_the_user_in(username)
+        elif 'your_name' in request.form and 'your_pass' in request.form:
+            if remember:
+                resp = make_response(redirect('/home'))
+                resp.set_cookie('username', username, max_age=3600)
+                resp.set_cookie('password', password, max_age=3600)
+                resp.set_cookie('remember', remember, max_age=3600)
+            if valid_login(username,
+                           password):
+                if not is_safe_url(request.args.get('next')):
+                    flask.abort(400)
+
+                print("Logged in!")
+                return log_the_user_in(username)
+
+        error = 'Invalid username/password'
 
     # the code below is executed if the request method
     # was GET or the credentials were invalid
@@ -37,72 +104,113 @@ def login():
 
 def log_the_user_in(username):
     session['username'] = username
-    return redirect(url_for('home'))
+    # admin = execute_one_query("SELECT adm FROM person WHERE username = %s", username)
+    return redirect(url_for('myvideos'))
 
 
 def valid_login(username, password):
     # db fetching
-    return
+    account = execute_one_query("SELECT * FROM person WHERE username = %s", username)
+    if account:
+        # if check_password_hash(account[1], password):
+        if check_password_hash(account[1], password):
+            return True
+    return False
 
 
 def get_user_data(username):
-    session['username'] = username
     # db fetching
-    return redirect(url_for('home'))
+    return session['username'], execute_one_query("SELECT email FROM person WHERE username = %s", username)[0]
 
 
 @app.route('/logout')
 def logout():
     # remove the username from the session if it's there
-    session.pop('username', None)
+    if 'username' in session:
+        session.pop('username', None)
+        session.pop('password', None)
+
     return redirect(url_for('login'))
 
 
 @app.route('/signup', methods=['POST', 'GET'])
 def signup():
+    if 'username' in session:
+        return redirect(url_for('myvideos'))
     error = None
     if request.method == 'POST':
-        if request.form['pass'] == request.form['re_pass']:
-            if valid_registration(request.form['email']):
-                return register_user(request.form['name'],
-                                     request.form['pass'], request.form['email'])
-            else:
-                error = 'That e-mail is already registered'
-        elif request.form['pass'] is not "":
-            error = 'Passwords don\'t match'
-        if len(request.form['pass']) < 6:
-            error = 'Password must have 6 ou more characters'
-    # the code below is executed if the request method
-    # was GET or the credentials were invalid
+        if 'name' in request.form and 'pass' in request.form and 'email' in request.form and 're_pass' in request.form:
+            if request.form['pass'] == request.form['re_pass']:
+                username = request.form['name']
+                email = request.form['email']
+                password = request.form['pass']
+                if valid_registration(email, username):
+                    register_user(username, password, email)
+                    return log_the_user_in(username)
+                else:
+                    error = 'That e-mail or username are already registered'
+            elif request.form['pass'] is not "":
+                error = 'Passwords don\'t match'
+            if len(request.form['pass']) < 6:
+                error = 'Password must have 6 ou more characters'
+        # the code below is executed if the request method
+        # was GET or the credentials were invalid
     return render_template('signup.html', page='signup', error=error)
 
 
-def valid_registration(email):
+def valid_registration(email, username):
     # query db
-    return
+    account = execute_one_query("SELECT * FROM person WHERE email = %s OR username = %s", [email, username])
+    if account:
+        return False
+    elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
+        return False
+    elif not re.match(r'[A-Za-z0-9]+', username):
+        return False
+    return True
 
 
-def register_user(name, password, email):
+def register_user(username, password, email):
     # insert db
-    return
+    insert("INSERT INTO person values (%s, %s, %s, %r)", [username, generate_password_hash(password), email, True])
 
 
 @app.route("/", methods=['GET', 'POST'])
 def home():
-    # if 'username' in session:
-        # username = request.cookies.get('username')
     if request.method == 'POST':
-            # todo changes (extra parameters) according to recorded video
+        # todo changes (extra parameters) according to recorded video
         return redirect(url_for('after_recording'))
-    return render_template("page.html", page='on_rec', name='Yay')  # get_user_data(session['username']))
+    if 'username' in session:
+        return render_template("page.html", page='on_rec', name=get_user_data(session['username']))
+    return redirect(url_for('login'))
 
-    # class Todo(db.Model):
-    # id = db.Column(db.Integer, primary_key=True)
-    # content = db.Column(db.String(200), nullable=False)
-    # date_created = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # def __repr__(self) -> str:
-    #     return "<Task %r>" % self.id
+@app.route("/update_profile", methods=['GET', 'POST'])
+def update_profile():
+    msg = None
+    if request.method == 'POST' and 'username' in session:
+        if 'password' in request.form and 're_password' in request.form:
+            if request.form['password'] == request.form['re_password']:
+                if valid_login(session['username'], request.form['password']):
+                    if 'username' in request.form and request.form['username'] != "":
+                        if not execute_one_query("SELECT * FROM person WHERE username = %s", request.form['username']):
+                            execute_one_query("UPDATE person SET username = %s WHERE username = %s", (request.form['username'], session['username']))
+                            return log_the_user_in(request.form['username'])
+                        else:
+                            msg = "That username already exists"
+                    elif 'email' in request.form and request.form['email'] != "":
+                        if not execute_one_query("SELECT * FROM person WHERE email = %s", request.form['email']):
+                            execute_one_query("UPDATE person SET email = %s WHERE username = %s", (request.form['email'], session['username']))
+                        else:
+                            msg = "That email is already registered"
+                else:
+                    msg = "Password is not correct"
+            else:
+                msg = "Passwords don't match"
+
+    if 'username' in session:
+        return render_template("update_profile.html", page='update', name=get_user_data(session['username']), msg=msg)
+    return redirect(url_for('login'))
 
 
 @app.route('/myvideos', methods=['POST', 'GET'])
@@ -110,7 +218,9 @@ def myvideos():
     if request.method == 'POST':
         # todo changes (extra parameters) according to selected video
         return redirect(url_for('home'))
-    return render_template('myvideos.html', page='myvideos')
+    if 'username' in session:
+        return render_template('myvideos.html', page='myvideos', name=get_user_data(session['username']))
+    return redirect(url_for('login'))
 
 
 @app.route('/after_recording', methods=['POST', 'GET'])
@@ -118,8 +228,10 @@ def after_recording():
     if request.method == 'POST':
         # todo changes (extra parameters) according to selected video
         return redirect(url_for('home'))
-    return render_template('after_recording.html', page='pos_rec')
+    if 'username' in session:
+        return render_template('after_recording.html', page='pos_rec', name=get_user_data(session['username']))
+    return redirect(url_for('login'))
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
