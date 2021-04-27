@@ -18,38 +18,43 @@ CREATE TABLE IF NOT EXISTS video (
     title VARCHAR(70) NOT NULL,
     username VARCHAR(20) NOT NULL,
     pathName VARCHAR(150) NOT NULL,
+    recTime DATETIME,
+    location VARCHAR(70),
     CONSTRAINT fk_video FOREIGN KEY (username)
         REFERENCES person (username)
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS frame (
-	idFrame int primary key auto_increment,
+	idFrame int,
     idVideo int,
     image MEDIUMBLOB,
+    CONSTRAINT pk_frame PRIMARY KEY(idFrame, idVideo), 
 	CONSTRAINT fk_frame FOREIGN KEY (idVideo)
         REFERENCES video (idVideo)
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS annotation (
-    emotionType tinyint primary key,
-    feeling VARCHAR(50) NOT NULL,
+    emotionType VARCHAR(50) primary key,
     icon MEDIUMBLOB
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS videoAnnotation (
-    emotionType tinyint,
+    emotionType VARCHAR(50),
 	idFrame int,
+	idVideo int,
     customText VARCHAR(80),
-	CONSTRAINT fk_videoAnnotation_frame FOREIGN KEY (idFrame)
-        REFERENCES frame (idFrame),
+	CONSTRAINT fk_videoAnnotation_frame FOREIGN KEY (idFrame, idVideo)
+        REFERENCES frame (idFrame, idVideo),
 	CONSTRAINT fk_videoAnnotation_annotation FOREIGN KEY (emotionType)
         REFERENCES annotation (emotionType)
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
 
-INSERT INTO annotation VALUES (1, "happiness", Null);
-INSERT INTO annotation VALUES (2, "sadness", Null);
-INSERT INTO annotation VALUES (3, "sleepiness", Null);
-INSERT INTO annotation VALUES (4, "anger", Null);
-INSERT INTO annotation VALUES (5, "surprised", Null);
-INSERT INTO annotation VALUES (6, "thinking", Null);
-INSERT INTO annotation VALUES (7, "custom", Null);
+INSERT INTO annotation VALUES ("happy", Null);
+INSERT INTO annotation VALUES ("sad", Null);
+INSERT INTO annotation VALUES ("sleepy", Null);
+INSERT INTO annotation VALUES ("angry", Null);
+INSERT INTO annotation VALUES ("surprised", Null);
+INSERT INTO annotation VALUES ("thinking", Null);
+INSERT INTO annotation VALUES ("custom", Null);
+INSERT INTO annotation VALUES ("heartbeat", Null);
+INSERT INTO annotation VALUES ("other", Null);
