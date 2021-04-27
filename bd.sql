@@ -45,3 +45,11 @@ CREATE TABLE IF NOT EXISTS videoAnnotation (
 	CONSTRAINT fk_videoAnnotation_annotation FOREIGN KEY (emotionType)
         REFERENCES annotation (emotionType)
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
+
+INSERT INTO annotation VALUES (1, "happiness", Null);
+INSERT INTO annotation VALUES (2, "sadness", Null);
+INSERT INTO annotation VALUES (3, "sleepiness", Null);
+INSERT INTO annotation VALUES (4, "anger", Null);
+INSERT INTO annotation VALUES (5, "surprised", Null);
+INSERT INTO annotation VALUES (6, "thinking", Null);
+INSERT INTO annotation VALUES (7, "custom", Null);
