@@ -11,7 +11,7 @@ app.secret_key = secrets.token_bytes(16)
 
 # MySQL configurations
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'pass'
+app.config['MYSQL_DATABASE_PASSWORD'] = ''
 app.config['MYSQL_DATABASE_DB'] = 'projeto'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 
@@ -234,4 +234,4 @@ def after_recording():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
