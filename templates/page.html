@@ -3,7 +3,34 @@
 {% block head %}
 
 <title>Video - Recording</title>
+  <script type="text/javascript">
+         $(document).ready(function() {
 
+           // sending a connect request to the server.
+           var socket = io();
+           socket.on('connect', function (){
+             socket.emit('my event', {data:"I'm connected"});
+           });
+
+           // An event handler for a change of value
+           $('button.emoticons').on('click', function (event) {
+             socket.emit('emotionButton', {
+               type: $(this).attr('id'),
+             });
+             return false;
+           });
+
+           // An event handler for a change of value
+           $('input.ann').on('keydown', function (event) {
+              if (event.key === 'Enter') {
+                socket.emit('customInput', {
+                  type: $(this).attr('id'),
+                  data: $(this).val()
+             });}
+           });
+
+         });
+      </script>
 {% endblock %}
 
 
@@ -24,25 +51,11 @@
         <button class="btn-danger">Stop & save recording</button></span>
       </form>
       <br/>
-      <video class="col-12" autoplay="true" id="video">
+      <video class="col-12">
 
       </video>
       {% include 'annotations.html' %}
-    </section>
   </section>
-
-  <script>
-    var video = document.querySelector("#video");
-  
-    if (navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-      .then(function (stream) {
-        video.srcObject = stream;
-      })
-      .catch(function (err0r) {
-        console.log("Something went wrong!");
-      });
-    }
-  </script>
+  </section>
 
 {% endblock %}
