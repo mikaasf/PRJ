@@ -5,13 +5,16 @@ import flask
 from flask import Flask, render_template, request, redirect, url_for, make_response, session
 from flaskext.mysql import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_socketio import SocketIO, emit
 
+# ==================================
+# ==== APP INITIALIZATION PARAMETERS ====
 app = Flask(__name__)
 app.secret_key = secrets.token_bytes(16)
 
 # MySQL configurations
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = ''
+app.config['MYSQL_DATABASE_PASSWORD'] = 'QueroPote2026*'
 app.config['MYSQL_DATABASE_DB'] = 'projeto'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 
@@ -19,6 +22,12 @@ app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 db = MySQL()
 db.init_app(app)
 db_con = db.connect()
+
+socketio = SocketIO(app, cors_allowed_origins="*")
+
+
+# ==================================
+# ==== DATABASE FUNTIONS ====
 
 
 def get_cursor_db():
@@ -54,6 +63,10 @@ def insert(query, params=None):
         print("Problem inserting into db: " + str(e))
         return False
     return result
+
+
+# ==================================
+# ==== LOGIN METHODS ====
 
 
 def is_safe_url(target):
@@ -122,6 +135,9 @@ def get_user_data(username):
     # db fetching
     return session['username'], execute_one_query("SELECT email FROM person WHERE username = %s", username)[0]
 
+# ==================================
+# ==== LOGOUT METHOD ====
+
 
 @app.route('/logout')
 def logout():
@@ -131,6 +147,9 @@ def logout():
         session.pop('password', None)
 
     return redirect(url_for('login'))
+
+# ==================================
+# ==== SIGNUP METHODS ====
 
 
 @app.route('/signup', methods=['POST', 'GET'])
@@ -174,6 +193,9 @@ def register_user(username, password, email):
     # insert db
     insert("INSERT INTO person values (%s, %s, %s, %r)", [username, generate_password_hash(password), email, True])
 
+# ==================================
+# ==== MAIN PAGES METHODS ====
+
 
 @app.route("/", methods=['GET', 'POST'])
 def home():
@@ -204,7 +226,7 @@ def update_profile():
                         else:
                             msg = "That email is already registered"
                 else:
-                    msg = "Password is not correct"
+                    msg = "Password's incorrect"
             else:
                 msg = "Passwords don't match"
 
@@ -220,7 +242,8 @@ def myvideos():
         return redirect(url_for('home'))
     if 'username' in session:
         return render_template('myvideos.html', page='myvideos', name=get_user_data(session['username']))
-    return redirect(url_for('login'))
+    else:
+        return redirect(url_for('login'))
 
 
 @app.route('/after_recording', methods=['POST', 'GET'])
@@ -230,8 +253,27 @@ def after_recording():
         return redirect(url_for('home'))
     if 'username' in session:
         return render_template('after_recording.html', page='pos_rec', name=get_user_data(session['username']))
-    return redirect(url_for('login'))
+    else:
+        return redirect(url_for('login'))
+
+# ==================================
+# ==== WEBSOCKET CONNECTIONS ====
+
+
+# Handler for a message recieved over 'emotionButton' channel
+@socketio.on('emotionButton')
+def receive_emotion(message):
+    print("clicked", message['type'])
+    # insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s)", [message['type'], message['frameID'], message['videoID']]);
+
+
+# Handler for a message recieved over 'customInput' channel
+@socketio.on('customInput')
+def receive_input(message):
+    print("input", message['type'], message['data'])
+    # insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s)", [message['type'], message['frameID'], message['videoID'], message['data']]);
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    #app.run(debug=True, port=5000)
+    socketio.run(app, debug=True, port=5001)
