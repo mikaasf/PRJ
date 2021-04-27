@@ -24,11 +24,25 @@
         <button class="btn-danger">Stop & save recording</button></span>
       </form>
       <br/>
-      <video class="col-12">
+      <video class="col-12" autoplay="true" id="video">
 
       </video>
       {% include 'annotations.html' %}
+    </section>
   </section>
-  </section>
+
+  <script>
+    var video = document.querySelector("#video");
+  
+    if (navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+      .then(function (stream) {
+        video.srcObject = stream;
+      })
+      .catch(function (err0r) {
+        console.log("Something went wrong!");
+      });
+    }
+  </script>
 
 {% endblock %}
