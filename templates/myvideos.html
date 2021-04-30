@@ -9,24 +9,32 @@
 
 
 {% block body %}
+{% if not videos %}
+    <br/>
+    <div class="d-flex flex-row-reverse">
+      <div class="p-2" style="width: 145px"></div>
+      <div class="p-2"> <img src="../static/imgs/arrowup.png" style="width: 70px; height: 60px"></div>
+            <div class="p-2" style="width: 30vh"></div>  <div class="p-2"><h4>Seems that you don't have any videos yet... Click on the plus sign to record your first!</h4></div>
+</div>
 
+    {% endif %}
 <section class="col-9 mx-auto">
   <div class="card-deck" style="min-height: 250px;">
 
-    <!-- todo add a for cycle here -->
+    {% for v in videos %}
     <div class="card col-md-3">
       <a href="{{ url_for('after_recording') }}">
 
       <img class="card-img-top" src="..." alt="Card image cap" id="card_img_1">
       <div class="card-body">
-        <h5 class="card-title" id="title">Card title</h5>
-        <p class="card-text" id="description">Description...</p>
+        <h5 class="card-title" id="title">{{ v[0] }}</h5>
       </div>
       <div class="card-footer">
-        <small class="text-muted">Last updated <span id="time">3 mins </span>ago</small>
+        <small class="text-muted">Last updated in <span id="time">{{ v[1] }}</span></small>
       </div>
     </a>
     </div>
+    {% endfor %}
      </a>
     </div>
   </div>

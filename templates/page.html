@@ -29,6 +29,13 @@
              });}
            });
 
+           // An event handler for a change of value
+           $('button.stop').on('click', function (event) {
+             socket.emit('stop_recording', {
+               title: $('input#vid_title').val()
+             });
+           });
+
          });
       </script>
 {% endblock %}
@@ -44,12 +51,12 @@
 </div> -->
 
   <section>
-    <section style="float: left; margin: 0 1.5%; width: 63%;">
-      <h3 id="vid_title"><input type="text" placeholder="Video Title" style="background-color: white; border: none;"></h3>
-      <form method="post">
-        <span><button class="rec-button Rec"></button>
-        <button class="btn-danger">Stop & save recording</button></span>
-      </form>
+    <section id="video_controls" style="float: left; margin: 0 1.5%; width: 63%;">
+      <h3><input type="text" name="vid_title" placeholder="Video Title" style="background-color: white; border: none;"></h3>
+      <span>
+          <button id="rec" class="notRec rec-button" disabled></button>
+          <button id="changeRec" class="btn-outline-danger" type="submit" onclick="startRecording()">Start Recording</button>
+        </span>
       <br/>
       <video class="col-12">
 
@@ -57,5 +64,32 @@
       {% include 'annotations.html' %}
   </section>
   </section>
+<script type="text/javascript">
+  function startRecording() {
+    if(document.getElementById("changeRec").innerHTML === "Stop &amp; save recording"){
+      let form = document.createElement("form");
+      form.setAttribute("method", "post");
+      let container = document.getElementById("video_controls");
+      let elements = [container.childElementCount];
+      let j = 0;
+      while(container.hasChildNodes()){
+        elements[j] = (container.removeChild(container.lastChild));
+        j++;
+      }
+      for (let i = 0; i<elements.length; i++){
+        form.appendChild(elements[i]);
+        console.log(elements[i]);
+      }
+      document.getElementById("video_controls").appendChild(form);
+      return;
+    }
+
+    let rec_light = document.getElementById("rec");
+    rec_light.classList.toggle("Rec");
+    let rec_button = document.getElementById("changeRec");
+    rec_button.classList.toggle("btn-danger");
+    document.getElementById("changeRec").innerHTML = "Stop & save recording";
+  }
+</script>
 
 {% endblock %}
