@@ -200,7 +200,9 @@ def register_user(username, password, email):
 @app.route("/", methods=['GET', 'POST'])
 def home():
     if request.method == 'POST':
-        # todo changes (extra parameters) according to recorded video
+        vid_title = request.form['vid_title']
+        # todo fetch & store extra parameters according to recorded video
+        print("title", vid_title)
         return redirect(url_for('after_recording'))
     if 'username' in session:
         return render_template("page.html", page='on_rec', name=get_user_data(session['username']))
@@ -229,7 +231,6 @@ def update_profile():
                     msg = "Password's incorrect"
             else:
                 msg = "Passwords don't match"
-
     if 'username' in session:
         return render_template("update_profile.html", page='update', name=get_user_data(session['username']), msg=msg)
     return redirect(url_for('login'))
@@ -238,10 +239,10 @@ def update_profile():
 @app.route('/myvideos', methods=['POST', 'GET'])
 def myvideos():
     if request.method == 'POST':
-        # todo changes (extra parameters) according to selected video
         return redirect(url_for('home'))
     if 'username' in session:
-        return render_template('myvideos.html', page='myvideos', name=get_user_data(session['username']))
+        videos = execute_one_query("SELECT title, uploadDate FROM video WHERE username=%s", session['username'], True)
+        return render_template('myvideos.html', page='myvideos', name=get_user_data(session['username']), videos=videos)
     else:
         return redirect(url_for('login'))
 
@@ -274,6 +275,7 @@ def receive_input(message):
     # insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s)", [message['type'], message['frameID'], message['videoID'], message['data']]);
 
 
+
 if __name__ == "__main__":
     #app.run(debug=True, port=5000)
-    socketio.run(app, debug=True, port=5001)
+    socketio.run(app, debug=True, port=5000)
