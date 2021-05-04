@@ -205,6 +205,7 @@ def home():
         print("title", vid_title)
         return redirect(url_for('after_recording'))
     if 'username' in session:
+        # new thread with socketio.emit('frame', {'image': "", 'heartRate': "", ...}) when receiving from client camera
         return render_template("page.html", page='on_rec', name=get_user_data(session['username']))
     return redirect(url_for('login'))
 
