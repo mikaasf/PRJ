@@ -1,11 +1,15 @@
+import base64
 import re
 import secrets
 from urllib.parse import urlparse, urljoin
+
+import cv2
 import flask
-from flask import Flask, render_template, request, redirect, url_for, make_response, session
+from flask import Flask, render_template, request, redirect, url_for, make_response, session, Response
 from flaskext.mysql import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO, emit
+from send_frame import SendFrame
 
 # ==================================
 # ==== APP INITIALIZATION PARAMETERS ====
@@ -193,8 +197,24 @@ def register_user(username, password, email):
     # insert db
     insert("INSERT INTO person values (%s, %s, %s, %r)", [username, generate_password_hash(password), email, True])
 
+
 # ==================================
 # ==== MAIN PAGES METHODS ====
+
+
+def _convert_image_to_jpeg(frame):
+    ret, buffer = cv2.imencode('.jpg', frame)
+    frame = buffer.tobytes()
+    yield (b'--frame\r\n'
+           b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
+
+
+@app.route('/video')
+def video():
+    img = cv2.imread("./static/imgs/eyeLogo.png")
+    img = _convert_image_to_jpeg(cv2.resize(img, (640, 480)))
+    print(type(img))
+    return Response(img, mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 @app.route("/", methods=['GET', 'POST'])
@@ -205,9 +225,18 @@ def home():
         print("title", vid_title)
         return redirect(url_for('after_recording'))
     if 'username' in session:
-        # new thread with socketio.emit('frame', {'image': "", 'heartRate': "", ...}) when receiving from client camera
-        return render_template("page.html", page='on_rec', name=get_user_data(session['username']))
+        # new thread com socketio.emit('frame', {'image': "", 'heartRate': "", ...}) cada vez que receber da camera
+        img = cv2.imread("./static/imgs/eyeLogo.png")
+        return render_template("page.html", page='on_rec', name=get_user_data(session['username']))#, img_test=_convert_image_to_jpeg(cv2.resize(img, (640, 480))))
+
     return redirect(url_for('login'))
+
+
+def get_frames():
+    cam = cv2.VideoCapture(0)
+    flag, img = cam.read()
+    key: int = cv2.waitKey(1)
+    return img
 
 
 @app.route("/update_profile", methods=['GET', 'POST'])
@@ -274,7 +303,6 @@ def receive_emotion(message):
 def receive_input(message):
     print("input", message['type'], message['data'])
     # insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s)", [message['type'], message['frameID'], message['videoID'], message['data']]);
-
 
 
 if __name__ == "__main__":
