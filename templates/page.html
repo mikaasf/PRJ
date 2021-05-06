@@ -35,12 +35,6 @@
                title: $('input#vid_title').val()
              });
            });
-           
-           const video = document.querySelector("#videoElement");
-
-           socket.on('frame', (msg) => {
-             video.src = msg.image;
-           });
 
          });
       </script>
@@ -64,8 +58,8 @@
           <button id="changeRec" class="btn-outline-danger" type="submit" onclick="startRecording()">Start Recording</button>
         </span>
       <br/>
-      <div class="col-12">
-        <img src="" id="videoElement">
+      <div class="col-9">
+        <img src="{{ url_for('video') }}" width="100%">
       </div>
       {% include 'annotations.html' %}
   </section>
