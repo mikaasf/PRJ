@@ -1,4 +1,4 @@
-# Projeto - Adapter
+# Projeto: Sistema Anotação de Vídeo com dados fisiológicos para análise de emoções
 
 ## Processo responsável pela obtenção da informação da câmara *intel realsense* e codificar a informação obtida para ser enviada para o servidor e para a aplicação
 
@@ -8,3 +8,24 @@
 
 ### `connector.py`:
 * Thread que retira as frames da memória da thread acima e limpa a memória.
+
+
+
+
+### Páginas 
+
+page -> página de visualização do vídeo "em tempo real"
+
+after_recording -> página de visualização do vídeo e anotações
+
+myvideos -> página com os vídeos associados a uma conta
+
+base -> navbar
+
+annotations -> aside elements
+
+login, signup & update profile
+
+
+**TODO**:
+- timeline do vídeo (para rever anotações)
