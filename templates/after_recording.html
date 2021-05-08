@@ -17,9 +17,17 @@
 
   <section>
     <section style="float: left; margin: 0 1.5%; width: 63%;">
-      <h3 id="vid_title">Video Title <button class="notRec rec-button" disabled></button></h3>
+        <h3 id="vid_title">
+        {% if video %}
+              {{ video[0] }}
+        {% endif %}
+        {% if not video %}
+                Video Title
+        {% endif %}
 
-      <video class="col-12">
+        <button class="notRec rec-button" disabled></button></h3>
+
+      <video class="col-12" src="{{ url_for('download_video', idVideo=idV) }}">
 
       </video>
       {% include 'annotations.html' %}
