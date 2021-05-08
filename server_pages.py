@@ -4,11 +4,21 @@ from urllib.parse import urlparse, urljoin
 
 import cv2
 import flask
-from flask import Flask, render_template, request, redirect, url_for, make_response, session
+from flask import Flask, render_template, request, redirect, url_for, make_response, session, Response, \
+    stream_with_context
 from flaskext.mysql import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO, emit
 from send_frame_handler import SendFrame
+
+
+UPLOAD_DIRECTORY = "./videos"
+
+if not os.path.exists(UPLOAD_DIRECTORY):
+    os.makedirs(UPLOAD_DIRECTORY)
+
+ALLOWED_EXTENSIONS = {'mpeg', 'mp4'}
+
 
 # ==================================
 # ==== APP INITIALIZATION PARAMETERS ====
@@ -20,6 +30,10 @@ app.config['MYSQL_DATABASE_USER'] = 'root'
 app.config['MYSQL_DATABASE_PASSWORD'] = ''
 app.config['MYSQL_DATABASE_DB'] = 'projeto'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
+# file upload configurations
+app.config['UPLOAD_FOLDER'] = UPLOAD_DIRECTORY
+app.config['MAX_CONTENT_LENGTH'] = 256 * 1024 * 1024 # 256 mb
+
 
 db = MySQL()
 db.init_app(app)
@@ -286,21 +300,73 @@ def myvideos():
     if request.method == 'POST':
         return redirect(url_for('home'))
     if 'username' in session:
-        videos = execute_one_query("SELECT title, uploadDate FROM video WHERE username=%s", session['username'], True)
+        videos = execute_one_query("SELECT title, uploadDate, idVideo FROM video WHERE username=%s", session['username'], True)
         return render_template('myvideos.html', page='myvideos', name=get_user_data(session['username']), videos=videos)
     else:
         return redirect(url_for('login'))
 
 
-@app.route('/after_recording', methods=['POST', 'GET'])
-def after_recording():
+@app.route('/import_video', methods=['GET', 'POST'])
+def import_video():
+    if request.method == 'POST':
+        if 'upFile' in request.files:
+            file = request.files['upFile']
+            if allowed_file(file.filename):
+                with open(os.path.join(UPLOAD_DIRECTORY, file.filename), "wb") as fp:
+                    fp.write(request.data)
+                    recTime = None
+                    location = None
+                    insert("INSERT INTO video values (%s, %s, %s, %s, %s, %s, %s)",
+                           [None, datetime.today().strftime('%Y-%m-%d-%H:%M:%S'), file.filename, session['username'], UPLOAD_DIRECTORY + "/" + file.filename, recTime, location])
+                    # Return 201 CREATED
+                    return redirect('myvideos', 201)
+        else:
+            redirect(url_for('importvideo'))
+    if 'username' in session:
+        return render_template('import_video.html', page='importvideo', name=get_user_data(session['username']))
+    else:
+        return redirect(url_for('login'))
+
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/after_recording/<idVideo>', methods=['POST', 'GET'])
+def after_recording(idVideo):
     if request.method == 'POST':
         # todo changes (extra parameters) according to selected video
         return redirect(url_for('home'))
     if 'username' in session:
-        return render_template('after_recording.html', page='pos_rec', name=get_user_data(session['username']))
+        video = execute_one_query("SELECT title, uploadDate, location, recTime FROM video WHERE username=%s AND idVideo=%s", [session['username'], idVideo])
+        # todo load video from path, etc.
+        return render_template('after_recording.html', page='pos_rec', name=get_user_data(session['username']), video=video, idV=idVideo)
     else:
         return redirect(url_for('login'))
+
+
+CHUNK_SIZE = 8192
+def read_file_chunks(path):
+    with open(path, 'rb') as fd:
+        while 1:
+            buf = fd.read(CHUNK_SIZE)
+            if buf:
+                yield buf
+            else:
+                break
+
+
+# fixme, not working yet
+@app.route('/download_video/<idVideo>')
+def download_video(idVideo):
+    path, name = execute_one_query("SELECT pathName, title FROM video WHERE username=%s AND idVideo=%s", [session['username'], idVideo])
+    if os.path.exists(path):
+        return Response(
+            stream_with_context(read_file_chunks(path)), mimetype="video/*", direct_passthrough=True
+        )
+    else:
+        print("File Not Found")
 
 
 # ==================================
