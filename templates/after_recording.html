@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Video - Video Annotation</title>
+{% endblock %}
+
+
+{% block body %}
+
+  <!-- 16:9 aspect ratio 
+<div class="embed-responsive embed-responsive-16by9">
+  //<iframe class="embed-responsive-item"></iframe>iframe
+  <video>
+
+  </video>
+</div> -->
+
+  <section>
+    <section style="float: left; margin: 0 1.5%; width: 63%;">
+      <h3 id="vid_title">Video Title <button class="notRec rec-button" disabled></button></h3>
+
+      <video class="col-12">
+
+      </video>
+      {% include 'annotations.html' %}
+ </section>
+  </section>
+{% endblock %}
