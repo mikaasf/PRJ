@@ -1,15 +1,14 @@
-import base64
 import re
 import secrets
 from urllib.parse import urlparse, urljoin
 
 import cv2
 import flask
-from flask import Flask, render_template, request, redirect, url_for, make_response, session, Response
+from flask import Flask, render_template, request, redirect, url_for, make_response, session
 from flaskext.mysql import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO, emit
-from send_frame import SendFrame
+from send_frame_handler import SendFrame
 
 # ==================================
 # ==== APP INITIALIZATION PARAMETERS ====
@@ -18,16 +17,17 @@ app.secret_key = secrets.token_bytes(16)
 
 # MySQL configurations
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'QueroPote2026*'
+# app.config['MYSQL_DATABASE_PASSWORD'] = 'QueroPote2026*'
+app.config['MYSQL_DATABASE_PASSWORD'] = ''
 app.config['MYSQL_DATABASE_DB'] = 'projeto'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
-
 
 db = MySQL()
 db.init_app(app)
 db_con = db.connect()
 
 socketio = SocketIO(app, cors_allowed_origins="*")
+com_socket_handler = None
 
 
 # ==================================
@@ -139,6 +139,7 @@ def get_user_data(username):
     # db fetching
     return session['username'], execute_one_query("SELECT email FROM person WHERE username = %s", username)[0]
 
+
 # ==================================
 # ==== LOGOUT METHOD ====
 
@@ -151,6 +152,7 @@ def logout():
         session.pop('password', None)
 
     return redirect(url_for('login'))
+
 
 # ==================================
 # ==== SIGNUP METHODS ====
@@ -205,38 +207,50 @@ def register_user(username, password, email):
 def _convert_image_to_jpeg(frame):
     ret, buffer = cv2.imencode('.jpg', frame)
     frame = buffer.tobytes()
-    yield (b'--frame\r\n'
-           b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
+    return (b'--frame\r\n'
+            b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
 
 
-@app.route('/video')
-def video():
-    img = cv2.imread("./static/imgs/eyeLogo.png")
-    img = _convert_image_to_jpeg(cv2.resize(img, (640, 480)))
-    print(type(img))
-    return Response(img, mimetype='multipart/x-mixed-replace; boundary=frame')
+def generate(debug=False):
+    print("VIDEO")
+    if debug:
+        cam = cv2.VideoCapture(0)
+        while True:
+            flag, frame = cam.read()
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+    else:
+        global com_socket_handler
+        if len(com_socket_handler.get_buffer) != 0:
+            print("yes")
+            frame = _convert_image_to_jpeg(com_socket_handler.get_buffer.pop())
+        else:
+            frame = cv2.imread("./static/imgs/eyeLogo.png")
+            frame = _convert_image_to_jpeg(cv2.resize(frame, (640, 480)))
+            print("no")
+        print(type(frame))
+        return frame
 
 
 @app.route("/", methods=['GET', 'POST'])
 def home():
+    global com_socket_handler
     if request.method == 'POST':
         vid_title = request.form['vid_title']
         # todo fetch & store extra parameters according to recorded video
         print("title", vid_title)
         return redirect(url_for('after_recording'))
     if 'username' in session:
-        # new thread com socketio.emit('frame', {'image': "", 'heartRate': "", ...}) cada vez que receber da camera
-        img = cv2.imread("./static/imgs/eyeLogo.png")
-        return render_template("page.html", page='on_rec', name=get_user_data(session['username']))#, img_test=_convert_image_to_jpeg(cv2.resize(img, (640, 480))))
+        if not com_socket_handler:
+            com_socket_handler = SendFrame(socketio)
+            com_socket_handler.daemon = True
+            com_socket_handler.start()
+        return render_template("page.html", page='on_rec', name=get_user_data(
+            session['username']))  # , img_test=_convert_image_to_jpeg(cv2.resize(img, (640, 480))))
 
     return redirect(url_for('login'))
-
-
-def get_frames():
-    cam = cv2.VideoCapture(0)
-    flag, img = cam.read()
-    key: int = cv2.waitKey(1)
-    return img
 
 
 @app.route("/update_profile", methods=['GET', 'POST'])
@@ -248,13 +262,15 @@ def update_profile():
                 if valid_login(session['username'], request.form['password']):
                     if 'username' in request.form and request.form['username'] != "":
                         if not execute_one_query("SELECT * FROM person WHERE username = %s", request.form['username']):
-                            execute_one_query("UPDATE person SET username = %s WHERE username = %s", (request.form['username'], session['username']))
+                            execute_one_query("UPDATE person SET username = %s WHERE username = %s",
+                                              (request.form['username'], session['username']))
                             return log_the_user_in(request.form['username'])
                         else:
                             msg = "That username already exists"
                     elif 'email' in request.form and request.form['email'] != "":
                         if not execute_one_query("SELECT * FROM person WHERE email = %s", request.form['email']):
-                            execute_one_query("UPDATE person SET email = %s WHERE username = %s", (request.form['email'], session['username']))
+                            execute_one_query("UPDATE person SET email = %s WHERE username = %s",
+                                              (request.form['email'], session['username']))
                         else:
                             msg = "That email is already registered"
                 else:
@@ -287,6 +303,7 @@ def after_recording():
     else:
         return redirect(url_for('login'))
 
+
 # ==================================
 # ==== WEBSOCKET CONNECTIONS ====
 
@@ -305,6 +322,12 @@ def receive_input(message):
     # insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s)", [message['type'], message['frameID'], message['videoID'], message['data']]);
 
 
-if __name__ == "__main__":
-    #app.run(debug=True, port=5000)
-    socketio.run(app, debug=True, port=5000)
+# Handler for a message recieved over 'connect' channel
+@socketio.on('my event')
+def connect_input(message):
+    print("input", message['data'])
+
+
+if __name__ == "__main__":    
+        
+    socketio.run(app, debug=False, port=5001)
