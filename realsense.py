@@ -1,78 +1,71 @@
 import numpy as np
 import cv2
-import time
 import threading
 import pyrealsense2 as rs
+import socket
+from frame_segment import FrameSegment
 
 
 class Camera (threading.Thread):
-    
-    def __init__(self, semaphore: threading.Semaphore, frame_rate: int=30):
-        
-        # Configure depth and color streams
-        self.__pipeline = rs.pipeline()
-        self.__config = rs.config()
-        
-        # Get device product line for setting a supporting resolution
-        self.__pipeline_wrapper = rs.pipeline_wrapper(self.__pipeline)
-        self.__pipeline_profile = self.__config.resolve(self.__pipeline_wrapper)
-        self.__device = self.__pipeline_profile.get_device()
-        self.__device_product_line = str(self.__device.get_info(rs.camera_info.product_line))
 
-        self.__config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+    def __init__(self, is_debug=False):
+        threading.Thread.__init__(self)
 
-        if self.__device_product_line == 'L500':
-            self.__config.enable_stream(rs.stream.color, 960, 540, rs.format.bgr8, 30)
-        else:
-            self.__config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-    
+        # Configure color streams
+        self.__pipeline: rs.pipeline = rs.pipeline()
+        self.__config: rs.config = rs.config()
+        self.__config.enable_stream(
+            rs.stream.color, 640, 480, rs.format.rgb8, 30)
+
+        s: socket = socket.socket(
+            family=socket.AF_INET, type=socket.SOCK_DGRAM)
+        self.__fs: FrameSegment = FrameSegment(s, 5005)
+
+        self.__isDebug: bool = is_debug
+
     def run(self) -> None:
-        
+        print("Stream started")
+        self.read_from_camera()
+        print("Stream finished")
+
+    def read_from_camera(self) -> None:
+
         # Start streaming
         self.__pipeline.start(self.__config)
-        
-        # Stop streaming
-        self.__pipeline.stop()
-        
-    def read_from_camera(self):
+
         while True:
 
-            # Wait for a coherent pair of frames: depth and color
-            frames = self.__pipeline.wait_for_frames()
-            depth_frame = frames.get_depth_frame()
-            color_frame = frames.get_color_frame()
-            if not depth_frame or not color_frame:
-                continue
+            # Wait for color frame
+            frames: rs.composite_frame = self.__pipeline.wait_for_frames()
+            color_frame: rs.video_frame = frames.get_color_frame()
 
-            # Convert images to numpy arrays
-            depth_image = np.asanyarray(depth_frame.get_data())
-            color_image = np.asanyarray(color_frame.get_data())
+            if color_frame:
 
-            # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
-            depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.03), cv2.COLORMAP_JET)
+                # Convert images to numpy arrays
+                color_image: np.ndarray = np.asanyarray(color_frame.get_data())
 
-            depth_colormap_dim = depth_colormap.shape
-            color_colormap_dim = color_image.shape
+                self.__fs.send_frame(color_image)
 
-            # If depth and color resolutions are different, resize color image to match depth image for display
-            if depth_colormap_dim != color_colormap_dim:
-                resized_color_image = cv2.resize(color_image, dsize=(depth_colormap_dim[1], depth_colormap_dim[0]), interpolation=cv2.INTER_AREA)
-                images = np.hstack((resized_color_image, depth_colormap))
-            else:
-                images = np.hstack((color_image, depth_colormap))
+                # Show images
+                if self.__isDebug:
+                    cv2.imshow('RealSense', cv2.cvtColor(
+                        color_image, cv2.COLOR_RGB2BGR))
 
-            # Show images
-            cv2.namedWindow('RealSense', cv2.WINDOW_AUTOSIZE)
-            cv2.imshow('RealSense', images)
             key: int = cv2.waitKey(1)
+
             if key == 27:       # Esc
                 print("Releasing camera...")
                 cv2.destroyAllWindows()
-                # self.__cam.release()
-                # self.__semaphore.release()
+
+                # Stop streaming
+                self.__pipeline.stop()
                 break
 
-    
 
 if __name__ == '__main__':
-    pass
+    cam = Camera(is_debug=True)
+
+    cam.start()
+    cam.join()
+
+    print("Exiting Main Thread")
