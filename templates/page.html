@@ -4,11 +4,12 @@
 
 <title>Video - Recording</title>
   <script type="text/javascript">
+    let socket;
          $(document).ready(function() {
 
            // sending a connect request to the server.
-           var socket = io();
-           socket.on('connect', function () {
+           socket = io();
+           socket.on('connect', function (){
              socket.emit('my event', {data:"I'm connected"});
            });
 
@@ -42,6 +43,10 @@
            });
 
          });
+         
+         window.onunload = function () {
+           socket.emit('leaveRecording');
+         }
       </script>
 {% endblock %}
 
@@ -64,7 +69,7 @@
         </span>
       <br/>
       <div class="col-9">
-        <img id="videoElement" src="" width="100%">
+        <img id="videoElement" src="{{ url_for('video') }}" width="130%">
       </div>
       &nbsp;&nbsp;
       {% include 'annotations.html' %}

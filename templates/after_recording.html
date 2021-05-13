@@ -17,9 +17,19 @@
 
   <section>
     <section style="float: left; margin: 0 1.5%; width: 63%;">
-      <h3 id="vid_title">Video Title <button class="notRec rec-button" disabled></button></h3>
+        <h3 id="vid_title">
+        {% if video %}
+              {{ video[0] }}
+        {% endif %}
+        {% if not video %}
+                Video Title
+        {% endif %}
 
-      <video class="col-12">
+        <button class="notRec rec-button" disabled></button></h3>
+
+      <video class="col-12" controls autoplay preload="auto">
+          <source src="{{ url_for('get_video', idVideo=idV) }}" type="video/mp4">
+          Your browser does not support the video tag :(
 
       </video>
       {% include 'annotations.html' %}
