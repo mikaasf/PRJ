@@ -15,11 +15,11 @@ from flaskext.mysql import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
 from zmq.utils.strtypes import unicode
-
+import subprocess
 from send_frame_handler import SendFrame
 from datetime import datetime
-from werkzeug.datastructures import Headers
 import urllib
+import json
 
 
 UPLOAD_DIRECTORY = "./static/videos"
@@ -283,11 +283,17 @@ def home():
         vid_title = request.form['vid_title']
         # todo fetch & store extra parameters according to recorded video
         print("title", vid_title)
-        return redirect(url_for('after_recording'))
+        recTime = ""
+        location = ""
+        video = None
+        insert_video_db(session['username'], video, recTime, location, vid_title)
+        return redirect(url_for('after_recording', idVideo=session['idVideo']))
     if 'username' in session:
         if not com_socket_handler:
             com_socket_handler = SendFrame()
             com_socket_handler.start()
+        session['idVideo'] = execute_one_query("SELECT * FROM currentVideoID")
+        execute_one_query("UPDATE projeto.currentvideoid set idVideo=idVideo+1")
         return render_template("page.html", page='on_rec', name=get_user_data(
             session['username']))  # , img_test=_convert_image_to_jpeg(cv2.resize(img, (640, 480))))
 
@@ -353,9 +359,10 @@ def import_video():
                     file.save(os.path.join(UPLOAD_DIRECTORY, filename))
                     recTime = None
                     location = None
-                    insert("INSERT INTO video values (%s, %s, %s, %s, %s, %s, %s)",
-                           [None, datetime.today().strftime('%Y-%m-%d-%H:%M:%S'), file.filename, session['username'],
-                            full_path, recTime, location])
+                    insert_video_db(session['username'], file, recTime, location)
+                    # insert("INSERT INTO video values (%s, %s, %s, %s, %s, %s, %s)",
+                    #        [None, datetime.today().strftime('%Y-%m-%d-%H:%M:%S'), file.filename, session['username'],
+                    #         full_path, recTime, location])
                     # Return 201 CREATED
                     return redirect('myvideos', 201)
         else:
@@ -369,6 +376,15 @@ def import_video():
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def insert_video_db(user, file, rec_time, location, titulo=None):
+    if not titulo:
+        titulo = file.filename
+    insert("INSERT INTO video values (%s, %s, %s, %s, %s, %s, %s)",
+           [None, datetime.today().strftime('%Y-%m-%d-%H:%M:%S'), titulo, user,
+            os.path.join(UPLOAD_DIRECTORY, urllib.parse.quote(file.filename)), rec_time, location])
+    execute_one_query("UPDATE projeto.currentvideoid set idVideo=idVideo+1")
 
 
 @app.route('/after_recording/<idVideo>', methods=['POST', 'GET'])
@@ -393,7 +409,8 @@ def send_file_partial(path):
         (if it has any)
     """
     range_header = request.headers.get('Range', None)
-    if not range_header: return send_file(path)
+    if not range_header:
+        return send_file(path)
 
     size = os.path.getsize(os.path.abspath(path))
     byte1, byte2 = 0, None
@@ -430,7 +447,6 @@ def send_file_partial(path):
     return rv
 
 
-# fixme, not working
 @app.route('/get_video/<idVideo>', methods=['GET'])
 def get_video(idVideo):
     path, name = execute_one_query("SELECT pathName, title FROM video WHERE username=%s AND idVideo=%s",
@@ -446,30 +462,59 @@ def get_video(idVideo):
 # ==== WEBSOCKET CONNECTIONS ====
 
 
-# Handler for a message recieved over 'emotionButton' channel
+# Handler for a message received over 'emotionButton' channel
 @socketio.on('emotionButton')
 def receive_emotion(message):
     print("clicked", message['type'])
-    # insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s)", [message['type'], message['frameID'], message['videoID']]);
+    insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s, %s)",
+           [message['type'], message['frameID'], session['idVideo'], None])
 
 
-# Handler for a message recieved over 'customInput' channel
+# Handler for a message received over 'customInput' channel
 @socketio.on('customInput')
 def receive_input(message):
     print("input", message['type'], message['data'])
-    # insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s)", [message['type'], message['frameID'], message['videoID'], message['data']]);
+
+    insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s, %s)",
+           [message['type'], message['frameID'], session['idVideo'], message['data']])
 
 
-# Handler for a message recieved over 'connect' channel
+# Handler for a message received over 'my event' channel
 @socketio.on('my event')
 def connect_input(message):
     print("input", message['data'])
 
 
-# Handler for a message recieved over 'connect' channel
+# Handler for a message received over 'leaveRecording' channel
 @socketio.on('leaveRecording')
-def connect_input(message):
+def leave_recording(message):
+    global com_socket_handler
     print("left Recording")
+    # session.pop('idVideo', None)
+    com_socket_handler.close_socket()
+
+
+#fixme working on this
+def generate_json(id_video):
+    filename = "vid_an" + id_video
+    annotations = np.asarray(
+        execute_one_query("SELECT emotionType, idFrame, customText FROM videoAnnotation WHERE idVideo = %s", id_video,
+                          True))
+    frames = np.unique(annotations[1])
+    obj = [id_video]
+    for f in frames:
+        frame_annot = annotations[:, annotations[1] == f]
+        annot = dict((frame_annot[0], frame_annot[2]))
+        print(annot)
+        obj.append({"frame": f, "annotations": annot})
+
+    return json.dump(obj, filename)
+
+
+def create_thumbnail(video_path, id_video):
+    filename = "th_" + id_video + '.jpg'
+    subprocess.call(['ffmpeg', '-i', video_path, '-ss', '00:00:30:000', '-vframes', '1', filename, "-y"])
+
 
 
 if __name__ == "__main__":
