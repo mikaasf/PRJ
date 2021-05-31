@@ -28,7 +28,9 @@ class FrameSegment(object):
         
         # Convert bytes object to base64 object
         encoded_audio: str = base64.b64encode(b''.join(audio)).decode('utf-8')
-        compress_img: bytes = cv2.imencode('.jpg', cv2.cvtColor(img, cv2.COLOR_BGR2RGB))[1].tobytes()
+        # encoded_audio: str = b''.join(audio).decode('utf-8')
+        # compress_img: bytes = cv2.imencode('.jpg', cv2.cvtColor(img, cv2.COLOR_BGR2RGB))[1].tobytes()
+        compress_img: bytes = cv2.imencode('.jpg', img)[1].tobytes()
         frame: str = base64.b64encode(compress_img).decode('utf-8')
 
         # Calculate how many segments for image and audio
@@ -78,9 +80,9 @@ class FrameSegment(object):
 
             # Wrap up all data
             data: list = [1 if video_array_pos_end == video_size else 0, 
-                          frame[video_array_pos_start:video_array_pos_end] if num_of_video_segments else None,
+                          frame[video_array_pos_start:video_array_pos_end] if num_of_video_segments else "",
                           1 if audio_array_pos_end == audio_size else 0,
-                          encoded_audio[audio_array_pos_start:audio_array_pos_end] if num_of_audio_segments else None]
+                          encoded_audio[audio_array_pos_start:audio_array_pos_end] if num_of_audio_segments else ""]
             
             # Dump data into JSON and send it
             data: str = json.dumps(data)

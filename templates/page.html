@@ -30,7 +30,8 @@
 
     const videoElem = document.querySelector("#videoElement");
     socket.on("vid", (msg) => {
-      videoElem.src = "data:image/jpg;base64," + msg.image;
+      videoElem.src = "data:image/jpg;base64," + Base64.encode(msg.image);
+      // console.log(msg.audio.length);
     });
   });
 
