@@ -24,9 +24,9 @@ class Camera (threading.Thread):
         self.__isDebug: bool = is_debug
 
     def run(self) -> None:
-        print("Stream started")
+        print("Start of camera thread")
         self.read_from_camera()
-        print("Stream finished")
+        print("End of camera thread")
 
     def read_from_camera(self) -> None:
 
@@ -64,6 +64,7 @@ class Camera (threading.Thread):
 
 if __name__ == '__main__':
     cam = Camera(is_debug=True)
+    # cam = Camera()
 
     cam.start()
     cam.join()

@@ -38,31 +38,15 @@
         {% if page != 'myvideos' %}
 
         <li class="nav-item">
-          <a class="nav-link mx-3" href="{{ url_for('myvideos') }}">My Videos</a>
+          <a class="nav-link" href="{{ url_for('myvideos') }}">My Videos</a>
         </li>
 
         {% endif %}
 
         {% if page == 'myvideos' %}
 
-        <li class="nav-item active">
-          <a class="nav-link mx-3" href="#">My Videos</a>
-        </li>
-
-        {% endif %}
-
-        {% if page != 'importvideo' %}
-
-        <li class="nav-item">
-          <a class="nav-link mx-3" href="{{ url_for('import_video') }}">Import Video</a>
-        </li>
-
-        {% endif %}
-
-        {% if page == 'importvideo' %}
-
-        <li class="nav-item active">
-          <a class="nav-link mx-3" href="#">Import Video</a>
+         <li class="nav-item active">
+          <a class="nav-link" href="#">My Videos</a>
         </li>
 
         {% endif %}

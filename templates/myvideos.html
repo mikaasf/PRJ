@@ -21,13 +21,9 @@
 <section class="col-9 mx-auto">
   <div class="card-deck" style="min-height: 250px;">
 
-      {% set count = [] %}
     {% for v in videos %}
-      {% if count|length % 3 == 0 %}
-      <div class="row mx-auto m-3">
-      {% endif %}
-    <div class="card p-3">
-      <a href="{{ url_for('after_recording', idVideo=v[2]) }}">
+    <div class="card col-md-3">
+      <a href="{{ url_for('after_recording') }}">
 
       <img class="card-img-top" src="..." alt="Card image cap" id="card_img_1">
       <div class="card-body">
@@ -38,14 +34,9 @@
       </div>
     </a>
     </div>
-     </a>
-            {% if count|length % 3 == 2 %}
-    </div>
-
-          {% endif %}
-
-      {% set _ = count.append(1) %}
     {% endfor %}
-      </div>
+     </a>
+    </div>
+  </div>
 </section>
 {% endblock %}

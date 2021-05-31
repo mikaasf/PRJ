@@ -2,49 +2,40 @@ import re
 import secrets
 from urllib.parse import urlparse, urljoin
 
-import cv2
 import flask
-from flask import Flask, render_template, request, redirect, url_for, make_response, session, Response, \
-    stream_with_context
+from flask import Flask, render_template, request, redirect, url_for, make_response, session, Response
 from flaskext.mysql import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO, emit
 from send_frame_handler import SendFrame
+from os import rename
 
-
-UPLOAD_DIRECTORY = "./videos"
-
-if not os.path.exists(UPLOAD_DIRECTORY):
-    os.makedirs(UPLOAD_DIRECTORY)
-
-ALLOWED_EXTENSIONS = {'mpeg', 'mp4'}
-
-
-# ==================================
+# =======================================
 # ==== APP INITIALIZATION PARAMETERS ====
 app = Flask(__name__)
 app.secret_key = secrets.token_bytes(16)
 
 # MySQL configurations
 app.config['MYSQL_DATABASE_USER'] = 'root'
+# app.config['MYSQL_DATABASE_PASSWORD'] = 'QueroPote2026*'
 app.config['MYSQL_DATABASE_PASSWORD'] = ''
 app.config['MYSQL_DATABASE_DB'] = 'projeto'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
-# file upload configurations
-app.config['UPLOAD_FOLDER'] = UPLOAD_DIRECTORY
-app.config['MAX_CONTENT_LENGTH'] = 256 * 1024 * 1024 # 256 mb
-
 
 db = MySQL()
 db.init_app(app)
 db_con = db.connect()
 
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# ==================================
+# ==== SERVER AUXILIARY OBJECTS ====
 com_socket_handler = None
+videos_dir_path = "static/videos/"
 
 
 # ==================================
-# ==== DATABASE FUNTIONS ====
+# ====    DATABASE FUNTIONS     ====
 
 
 def get_cursor_db():
@@ -217,34 +208,34 @@ def register_user(username, password, email):
 # ==== MAIN PAGES METHODS ====
 
 
-def _convert_image_to_jpeg(frame):
-    ret, buffer = cv2.imencode('.jpg', frame)
-    frame = buffer.tobytes()
-    return (b'--frame\r\n'
-            b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
+# def _convert_image_to_jpeg(frame):
+#     ret, buffer = cv2.imencode('.jpg', frame)
+#     frame = buffer.tobytes()
+#     return (b'--frame\r\n'
+#             b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
 
 
-def generate(debug=False):
-    print("VIDEO")
-    if debug:
-        cam = cv2.VideoCapture(0)
-        while True:
-            flag, frame = cam.read()
-            ret, buffer = cv2.imencode('.jpg', frame)
-            frame = buffer.tobytes()
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-    else:
-        global com_socket_handler
-        if len(com_socket_handler.get_buffer) != 0:
-            print("yes")
-            frame = _convert_image_to_jpeg(com_socket_handler.get_buffer.pop())
-        else:
-            frame = cv2.imread("./static/imgs/eyeLogo.png")
-            frame = _convert_image_to_jpeg(cv2.resize(frame, (640, 480)))
-            print("no")
-        print(type(frame))
-        return frame
+# def generate(debug=False):
+#     print("VIDEO")
+#     if debug:
+#         cam = cv2.VideoCapture(0)
+#         while True:
+#             flag, frame = cam.read()
+#             ret, buffer = cv2.imencode('.jpg', frame)
+#             frame = buffer.tobytes()
+#             yield (b'--frame\r\n'
+#                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+#     else:
+#         global com_socket_handler
+#         if len(com_socket_handler.get_buffer) != 0:
+#             print("yes")
+#             frame = _convert_image_to_jpeg(com_socket_handler.get_buffer.pop())
+#         else:
+#             frame = cv2.imread("./static/imgs/eyeLogo.png")
+#             frame = _convert_image_to_jpeg(cv2.resize(frame, (640, 480)))
+#             print("no")
+#         print(type(frame))
+#         return frame
 
 
 @app.route("/", methods=['GET', 'POST'])
@@ -254,15 +245,22 @@ def home():
         vid_title = request.form['vid_title']
         # todo fetch & store extra parameters according to recorded video
         print("title", vid_title)
+        
+        if vid_title:
+            rename(videos_dir_path + "teste.avi", videos_dir_path + vid_title + ".avi")
+        
         return redirect(url_for('after_recording'))
+    
     if 'username' in session:
+        print(com_socket_handler)
         if not com_socket_handler:
             com_socket_handler = SendFrame(socketio)
-            com_socket_handler.daemon = True
+            com_socket_handler.daemon = False
             com_socket_handler.start()
+        
         return render_template("page.html", page='on_rec', name=get_user_data(
-            session['username']))  # , img_test=_convert_image_to_jpeg(cv2.resize(img, (640, 480))))
-
+            session['username']))
+        
     return redirect(url_for('login'))
 
 
@@ -300,73 +298,21 @@ def myvideos():
     if request.method == 'POST':
         return redirect(url_for('home'))
     if 'username' in session:
-        videos = execute_one_query("SELECT title, uploadDate, idVideo FROM video WHERE username=%s", session['username'], True)
+        videos = execute_one_query("SELECT title, uploadDate FROM video WHERE username=%s", session['username'], True)
         return render_template('myvideos.html', page='myvideos', name=get_user_data(session['username']), videos=videos)
     else:
         return redirect(url_for('login'))
 
 
-@app.route('/import_video', methods=['GET', 'POST'])
-def import_video():
-    if request.method == 'POST':
-        if 'upFile' in request.files:
-            file = request.files['upFile']
-            if allowed_file(file.filename):
-                with open(os.path.join(UPLOAD_DIRECTORY, file.filename), "wb") as fp:
-                    fp.write(request.data)
-                    recTime = None
-                    location = None
-                    insert("INSERT INTO video values (%s, %s, %s, %s, %s, %s, %s)",
-                           [None, datetime.today().strftime('%Y-%m-%d-%H:%M:%S'), file.filename, session['username'], UPLOAD_DIRECTORY + "/" + file.filename, recTime, location])
-                    # Return 201 CREATED
-                    return redirect('myvideos', 201)
-        else:
-            redirect(url_for('importvideo'))
-    if 'username' in session:
-        return render_template('import_video.html', page='importvideo', name=get_user_data(session['username']))
-    else:
-        return redirect(url_for('login'))
-
-
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
-@app.route('/after_recording/<idVideo>', methods=['POST', 'GET'])
-def after_recording(idVideo):
+@app.route('/after_recording', methods=['POST', 'GET'])
+def after_recording():
     if request.method == 'POST':
         # todo changes (extra parameters) according to selected video
         return redirect(url_for('home'))
-    if 'username' in session:
-        video = execute_one_query("SELECT title, uploadDate, location, recTime FROM video WHERE username=%s AND idVideo=%s", [session['username'], idVideo])
-        # todo load video from path, etc.
-        return render_template('after_recording.html', page='pos_rec', name=get_user_data(session['username']), video=video, idV=idVideo)
+    if 'username' in session:       
+        return render_template('after_recording.html', page='pos_rec', name=get_user_data(session['username']))
     else:
         return redirect(url_for('login'))
-
-
-CHUNK_SIZE = 8192
-def read_file_chunks(path):
-    with open(path, 'rb') as fd:
-        while 1:
-            buf = fd.read(CHUNK_SIZE)
-            if buf:
-                yield buf
-            else:
-                break
-
-
-# fixme, not working yet
-@app.route('/download_video/<idVideo>')
-def download_video(idVideo):
-    path, name = execute_one_query("SELECT pathName, title FROM video WHERE username=%s AND idVideo=%s", [session['username'], idVideo])
-    if os.path.exists(path):
-        return Response(
-            stream_with_context(read_file_chunks(path)), mimetype="video/*", direct_passthrough=True
-        )
-    else:
-        print("File Not Found")
 
 
 # ==================================
@@ -391,8 +337,24 @@ def receive_input(message):
 @socketio.on('my event')
 def connect_input(message):
     print("input", message['data'])
+    
+@socketio.on('stop_recording')
+def end_connection( _ ):
+    global com_socket_handler
+    print(com_socket_handler)
+    com_socket_handler.close_socket()
+    com_socket_handler.join()
+    com_socket_handler = None
+
+@socketio.on('start_recording')
+def start_recording( _ ):
+    global com_socket_handler
+    com_socket_handler.start_recording()
 
 
 if __name__ == "__main__":    
         
-    socketio.run(app, debug=False, port=5001)
+    socketio.run(app, debug=True, port=5001)
+    if com_socket_handler:
+        com_socket_handler.close_socket()
+        com_socket_handler.join()
