@@ -51,7 +51,7 @@ com_socket_handler = None
 
 
 # ==================================
-# ==== DATABASE FUNTIONS ====
+# ==== DATABASE FUNCTIONS ====
 
 
 def get_cursor_db():
@@ -231,7 +231,6 @@ def ext_generate():
             frame = com_socket_handler.get_buffer.pop()
             if frame[0]:
                 img = cv2.imencode('.jpg', frame[1])[1].tobytes()
-                print(img)
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + img + b'\r\n')
 
@@ -243,7 +242,6 @@ def ext_generate_cam():
         if frame:
             frame = com_socket_handler.get_buffer.pop()
             img = cv2.imencode('.jpg', frame)[1].tobytes()
-            print(img)
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + img + b'\r\n')
 
@@ -251,7 +249,6 @@ def ext_generate_cam():
 def generate_test_img():
     frame = cv2.imread("./static/imgs/eyeLogo.png")
     frame = cv2.imencode('.jpg', frame)[1].tobytes()
-    print(type(frame))
     return (b'--frame\r\n'
             b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
 
@@ -264,7 +261,6 @@ def gen():
         flag, img = camera.read()
         img = cv2.imencode('.jpg', img)[1].tobytes()
         if flag:
-            print("a")
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + img + b'\r\n')
 
@@ -285,15 +281,15 @@ def home():
         print("title", vid_title)
         recTime = ""
         location = ""
-        video = None
-        insert_video_db(session['username'], video, recTime, location, vid_title)
+        video_file = None
+        generate_json(session['idVideo'])
+        insert_video_db(session['username'], video_file, recTime, location, vid_title)
         return redirect(url_for('after_recording', idVideo=session['idVideo']))
     if 'username' in session:
         if not com_socket_handler:
             com_socket_handler = SendFrame()
             com_socket_handler.start()
-        session['idVideo'] = execute_one_query("SELECT * FROM currentVideoID")
-        execute_one_query("UPDATE projeto.currentvideoid set idVideo=idVideo+1")
+        session['idVideo'] = get_and_increment_current_video_id()
         return render_template("page.html", page='on_rec', name=get_user_data(
             session['username']))  # , img_test=_convert_image_to_jpeg(cv2.resize(img, (640, 480))))
 
@@ -334,13 +330,22 @@ def myvideos():
     if request.method == 'POST':
         return redirect(url_for('home'))
     if 'username' in session:
-        videos = execute_one_query("SELECT title, uploadDate, idVideo FROM video WHERE username=%s",
-                                   session['username'], True)
-        videos = np.asarray(videos)
+        videos = np.asarray(
+            execute_one_query("SELECT title, uploadDate, idVideo FROM video WHERE username=%s ORDER BY uploadDate DESC",
+                              session['username'], True))
+
+        videos = np.hstack((videos, np.zeros((videos.shape[0], 1))))
+
         for v in videos:
             v[0] = urllib.parse.unquote(v[0])
-        videos = tuple(videos)
-        return render_template('myvideos.html', page='myvideos', name=get_user_data(session['username']), videos=videos)
+            thumbnail = execute_one_query("SELECT imagePath FROM thumbnail WHERE idVideo=%s", v[2])
+            if not thumbnail:
+                v[3] = os.path.join(app.config['UPLOAD_FOLDER'], "thumbnails", "default-thumbnail.png")
+            else:
+                v[3] = np.asarray(thumbnail)[0]
+
+        return render_template('myvideos.html', page='myvideos', name=get_user_data(session['username']),
+                               videos=tuple(videos))
     else:
         return redirect(url_for('login'))
 
@@ -360,9 +365,6 @@ def import_video():
                     recTime = None
                     location = None
                     insert_video_db(session['username'], file, recTime, location)
-                    # insert("INSERT INTO video values (%s, %s, %s, %s, %s, %s, %s)",
-                    #        [None, datetime.today().strftime('%Y-%m-%d-%H:%M:%S'), file.filename, session['username'],
-                    #         full_path, recTime, location])
                     # Return 201 CREATED
                     return redirect('myvideos', 201)
         else:
@@ -381,10 +383,27 @@ def allowed_file(filename):
 def insert_video_db(user, file, rec_time, location, titulo=None):
     if not titulo:
         titulo = file.filename
+    video_path = os.path.join(UPLOAD_DIRECTORY, urllib.parse.quote(file.filename))
+    id_video = get_and_increment_current_video_id()
     insert("INSERT INTO video values (%s, %s, %s, %s, %s, %s, %s)",
-           [None, datetime.today().strftime('%Y-%m-%d-%H:%M:%S'), titulo, user,
-            os.path.join(UPLOAD_DIRECTORY, urllib.parse.quote(file.filename)), rec_time, location])
+           [id_video, datetime.today().strftime('%Y-%m-%d-%H:%M:%S'), titulo, user,
+            video_path, rec_time, location])
+    create_thumbnail(video_path, id_video)
+
+
+def create_thumbnail(video_path, id_video):
+    filename = "th_" + str(id_video) + '.jpg'
+    path = os.path.join(UPLOAD_DIRECTORY, "thumbnails", filename)
+    insert("INSERT INTO thumbnail VALUES (%s, %s)", [id_video, path])
+    subprocess.call(
+        ['ffmpeg', '-i', os.path.abspath(video_path), '-ss', '00:00:03.000', '-vframes', '1', path,
+         "-y"])
+
+
+def get_and_increment_current_video_id():
+    id_video = execute_one_query("SELECT * FROM currentVideoID")[0]
     execute_one_query("UPDATE projeto.currentvideoid set idVideo=idVideo+1")
+    return id_video
 
 
 @app.route('/after_recording/<idVideo>', methods=['POST', 'GET'])
@@ -408,6 +427,7 @@ def send_file_partial(path):
         (byte ranges)
         (if it has any)
     """
+
     range_header = request.headers.get('Range', None)
     if not range_header:
         return send_file(path)
@@ -418,14 +438,15 @@ def send_file_partial(path):
     m = re.search('(\d+)-(\d*)', range_header)
     g = m.groups()
 
-    if g[0]: byte1 = int(g[0])
-    if g[1]: byte2 = int(g[1])
+    if g[0]:
+        byte1 = int(g[0])
+    if g[1]:
+        byte2 = int(g[1])
 
     length = size - byte1
     if byte2 is not None:
-        length = byte2 - byte1
+        length = byte2 - byte1 + 1
 
-    data = None
     with open(path, 'rb') as f:
         f.seek(byte1)
         data = f.read(length)
@@ -434,7 +455,7 @@ def send_file_partial(path):
                   206,
                   mimetype=mimetypes.guess_type(path)[0],
                   direct_passthrough=True)
-    rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(byte1, byte1 + length - 1, size))
+    rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(byte1, byte1 + length, size))
     rv.set_etag('flask-%s-%s-%s' % (
         os.path.getmtime(path),
         os.path.getsize(path),
@@ -451,23 +472,18 @@ def send_file_partial(path):
 def get_video(idVideo):
     path, name = execute_one_query("SELECT pathName, title FROM video WHERE username=%s AND idVideo=%s",
                                    [session['username'], idVideo])
-
-    if "Range" not in request.headers:
-        return send_from_directory(app.config['UPLOAD_FOLDER'], urllib.parse.quote(name), conditional=True)
-
     return send_file_partial(path)
 
 
 # ==================================
 # ==== WEBSOCKET CONNECTIONS ====
 
-
 # Handler for a message received over 'emotionButton' channel
 @socketio.on('emotionButton')
 def receive_emotion(message):
     print("clicked", message['type'])
-    insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s, %s)",
-           [message['type'], message['frameID'], session['idVideo'], None])
+    insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s, %s, %s)",
+           [message['type'], message['frameID'], session['idVideo'], None, None])
 
 
 # Handler for a message received over 'customInput' channel
@@ -475,8 +491,8 @@ def receive_emotion(message):
 def receive_input(message):
     print("input", message['type'], message['data'])
 
-    insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s, %s)",
-           [message['type'], message['frameID'], session['idVideo'], message['data']])
+    insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s, %s, %s)",
+           [message['type'], message['frameID'], session['idVideo'], message['data'], None])
 
 
 # Handler for a message received over 'my event' channel
@@ -487,34 +503,60 @@ def connect_input(message):
 
 # Handler for a message received over 'leaveRecording' channel
 @socketio.on('leaveRecording')
-def leave_recording(message):
+def leave_recording():
     global com_socket_handler
     print("left Recording")
     # session.pop('idVideo', None)
-    com_socket_handler.close_socket()
+    # com_socket_handler.close_socket()
 
 
-#fixme working on this
 def generate_json(id_video):
-    filename = "vid_an" + id_video
+    filename = "vid_an" + str(id_video)
+
     annotations = np.asarray(
         execute_one_query("SELECT emotionType, idFrame, customText FROM videoAnnotation WHERE idVideo = %s", id_video,
                           True))
-    frames = np.unique(annotations[1])
-    obj = [id_video]
+
+    all_annotations = np.asarray(
+        execute_one_query("SELECT emotionType, emotion FROM annotation", fetchall=True))
+
+    emotions = all_annotations[all_annotations[:, 1] == '1', 0]
+
+    frames = np.unique(annotations[:, 1])
+    print("frames", frames)
+    json_vid = {"video": id_video}
+
     for f in frames:
-        frame_annot = annotations[:, annotations[1] == f]
-        annot = dict((frame_annot[0], frame_annot[2]))
-        print(annot)
-        obj.append({"frame": f, "annotations": annot})
+        frame_annot = annotations[annotations[:, 1] == f]
 
-    return json.dump(obj, filename)
+        bool_array_emotions = np.isin(frame_annot[:, 0], emotions)
+        emotions = frame_annot[bool_array_emotions, 0]
+        others = frame_annot[~bool_array_emotions]
 
+        body_signs = {}
+        if "heartbeat" in others:
+            body_signs["heartbeat"] = int(others[others[:, 0] == "heartbeat", 2])
+        if "sweat" in others:
+            body_signs["sweat"] = int(others[others[:, 0] == "sweat", 2])
 
-def create_thumbnail(video_path, id_video):
-    filename = "th_" + id_video + '.jpg'
-    subprocess.call(['ffmpeg', '-i', video_path, '-ss', '00:00:30:000', '-vframes', '1', filename, "-y"])
+        manual = []
+        if "manual" in emotions:
+            manual = [others[others[:, 0] == "custom", 2][0]]
 
+        other_annot = {}
+
+        json_emotions = {"emotions": {"detected": list(emotions),
+                                      "manual": manual},
+                         "body_signs": body_signs,
+                         "others": other_annot}
+        # json_frame = {"frame": f, "annotations": json_emotions}
+        json_vid["frame_" + str(f)] = {"annotations": json_emotions}
+
+    json_vid["other_data"] = {}
+    string_json = json.dumps(json_vid)
+    with open(os.path.join(UPLOAD_DIRECTORY, "json", filename) + '.json', 'w') as f:
+        f.write(string_json)
+    return string_json
 
 
 if __name__ == "__main__":
