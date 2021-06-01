@@ -4,6 +4,7 @@ import cv2
 import threading
 import pyrealsense2 as rs
 import socket
+from copy import deepcopy
 from frame_segment import FrameSegment
 from audio_stream import AudioRecorder
 
@@ -17,7 +18,7 @@ class Camera (threading.Thread):
         self.__pipeline: rs.pipeline = rs.pipeline()
         self.__config: rs.config = rs.config()
         self.__config.enable_stream(
-            rs.stream.color, 640, 480, rs.format.rgb8, 30)
+            rs.stream.color, 640, 480, rs.format.bgr8, 30)
         
         self.__cam: cv2.VideoCapture = None
         self.__is_realsense_on: bool = True
@@ -88,9 +89,9 @@ class Camera (threading.Thread):
                 flag, color_image = self.__cam.read()
                 
                 if flag:                    
-                    audio_buffer: list = self.__audio_recorder.read_buffer()
-                    self.__fs.send_frame(color_image, audio_buffer)
+                    audio_buffer: list = deepcopy(self.__audio_recorder.read_buffer())
                     self.__audio_recorder.clear_buffer()
+                    self.__fs.send_frame(color_image, audio_buffer)
 
                     # Show images
                     if self.__isDebug:

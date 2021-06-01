@@ -28,7 +28,6 @@ class FrameSegment(object):
         
         # Convert bytes object to base64 object
         encoded_audio: str = base64.b64encode(b''.join(audio)).decode('utf-8')
-        # encoded_audio: str = b''.join(audio).decode('utf-8')
         # compress_img: bytes = cv2.imencode('.jpg', cv2.cvtColor(img, cv2.COLOR_BGR2RGB))[1].tobytes()
         compress_img: bytes = cv2.imencode('.jpg', img)[1].tobytes()
         frame: str = base64.b64encode(compress_img).decode('utf-8')
@@ -53,7 +52,7 @@ class FrameSegment(object):
             if num_of_audio_segments:
                 
                 if num_of_audio_segments == 1:
-                    video_total_free_space += half_payload_size - audio_size - audio_array_pos_start
+                    video_total_free_space += half_payload_size - audio_size + audio_array_pos_start
                     
                 else:
                     video_total_free_space += 0
@@ -64,8 +63,7 @@ class FrameSegment(object):
                 
             if num_of_video_segments:
                 if num_of_video_segments == 1:
-                    remaining_video_size = video_size - video_array_pos_start
-                    audio_total_free_space += half_payload_size - remaining_video_size
+                    audio_total_free_space += half_payload_size - video_size + video_array_pos_start
                     
                 else:
                     audio_total_free_space += 0

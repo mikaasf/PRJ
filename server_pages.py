@@ -252,7 +252,6 @@ def home():
         return redirect(url_for('after_recording'))
     
     if 'username' in session:
-        print(com_socket_handler)
         if not com_socket_handler:
             com_socket_handler = SendFrame(socketio)
             com_socket_handler.daemon = False

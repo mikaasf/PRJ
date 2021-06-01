@@ -1,6 +1,7 @@
 import threading
 import socket
 import json
+from time import time
 import numpy as np
 import cv2
 import base64
@@ -13,7 +14,6 @@ CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100
-RECORD_SECONDS = 5
 WAVE_OUTPUT_FILENAME = "output.wav"
 MAX_DGRAM: int = 2 ** 16
 
@@ -31,10 +31,13 @@ class SendFrame(threading.Thread):
         self.__p = pyaudio.PyAudio()
         
         self.__fourcc: int = cv2.VideoWriter_fourcc(*'MJPG')
-        self.__output: cv2.VideoWriter = cv2.VideoWriter(self.__path + 'teste.avi', self.__fourcc, 25, (640, 480))
+        self.__output: cv2.VideoWriter = cv2.VideoWriter(self.__path + 'teste.mkv', self.__fourcc, 25, (640, 480))
         
         self.__end_connection: bool = False
         self.__is_recording: bool = False
+        
+        self.__start_time: float = 0.
+        self.__frame_counts: int = 0
 
     def run(self) -> None:
         self.send_data()
@@ -49,7 +52,8 @@ class SendFrame(threading.Thread):
         
         video: str = ""
         audio: str = ""
-
+        
+        self.__start_time = time()
         while not self.__end_connection:
             seg: bytes
             seg, _ = self.__socket.recvfrom(MAX_DGRAM)
@@ -60,20 +64,24 @@ class SendFrame(threading.Thread):
                 video += msg[1]
                 audio += msg[3]
                 
-                                
-                wf.writeframes(base64.b64decode(audio))
                 
                 # if not self.__output.isOpened():
                 #     self.__output.open(self.__path + 'teste.avi', self.__fourcc, 25, (640, 480))
                 
-                try:
-                    frame_encoded: np.ndarray = np.frombuffer(base64.b64decode(video), dtype=np.uint8)
-                    frame: np.ndarray = cv2.imdecode(frame_encoded, cv2.IMREAD_UNCHANGED)
-                    
-                except cv2.error as e:
-                    print("Error parsing frame:", e)
+                if len(video):
+                    try:
+                        frame_encoded: np.ndarray = np.frombuffer(base64.b64decode(video.encode('utf-8')), dtype=np.uint8)
+                        frame: np.ndarray = cv2.imdecode(frame_encoded, cv2.IMREAD_UNCHANGED)
+                        self.__output.write(frame)
+                        self.__frame_counts += 1
+                        
+                    except cv2.error as e:
+                        print("Error parsing frame:", e)
                 
-                self.__output.write(frame)
+                
+                if len(audio):
+                    wf.writeframes(base64.b64decode(audio.encode('utf-8')))
+                
                 video = ""
                 audio = ""
                     
@@ -106,9 +114,21 @@ class SendFrame(threading.Thread):
         wf.close()
         self.__output.release()
         
-        cmd = "C://ffmpeg//bin//ffmpeg -ac 2 -channel_layout stereo -i static/temp/output.wav -i static/temp/teste.avi -pix_fmt yuv420p static/videos/final_output.avi"
-        subprocess.call(cmd, shell=True)
+        elapsed_time = time() - self.__start_time
+        recorded_fps = self.__frame_counts / elapsed_time
         
+        
+        if abs(recorded_fps - 25) >= .01:
+            cmd = "C://ffmpeg//bin//ffmpeg -r " + str(recorded_fps) + " -i static/temp/teste.mkv -pix_fmt yuv420p -r 25 static/temp/teste2.mkv"
+            subprocess.call(cmd, shell=True)
+        
+            cmd = "C://ffmpeg//bin//ffmpeg -ac 2 -channel_layout stereo -i static/temp/output.wav -i static/temp/teste2.mkv -pix_fmt yuv420p static/videos/final_output.mp4"
+            subprocess.call(cmd, shell=True)
+            
+        else:
+            cmd = "C://ffmpeg//bin//ffmpeg -ac 2 -channel_layout stereo -i static/temp/output.wav -i static/temp/teste.mkv -pix_fmt yuv420p static/videos/final_output.mp4"
+            subprocess.call(cmd, shell=True)
+            
         self.__socket.close()
         self.__output.release()
 
