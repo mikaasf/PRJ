@@ -30,8 +30,10 @@
 
     const videoElem = document.querySelector("#videoElement");
     socket.on("vid", (msg) => {
-      videoElem.src = "data:image/jpg;base64," + Base64.encode(msg.image);
-      // console.log(msg.audio.length);
+      // videoElem.src = "data:image/jpg;base64," + Base64.encode(msg.image);
+      // console.log(msg.video.length);
+      video_src.src = "data:video/mp4;base64," + msg.video;
+      videoElem.load()
     });
   });
 
@@ -50,7 +52,10 @@
     <span class="ml-3" id="timer">00:00:00</span>
     <br/>
     <div class="col-9">
-      <img id="videoElement" src="static/imgs/no_cam.jpg" width="90%" />
+      <!-- <img id="videoElement" src="static/imgs/no_cam.jpg" width="90%" /> -->
+      <video id="videoElement" width="90%">
+        <source id="video_src" src="">
+      </video>
     </div>
     &nbsp;&nbsp; {% include 'annotations.html' %}
   </section>
