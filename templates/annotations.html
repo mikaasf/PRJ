@@ -7,11 +7,21 @@
       <section style="float: right;">
         <p>
         <h4>
-          🕒 <span id="date"> ------- </span>
+          🕒 <span id="date"> {% if video and video[3] %}
+              {{ video[3] }}
+        {% endif %}
+        {% if not video or not video[3] %}
+                -------
+        {% endif %} </span>
         </h4>
         <br />
         <h4>
-          📍 <span id="place"> ------- </span>
+          📍 <span id="place"> {% if video and video[2] %}
+              {{ video[2] }}
+        {% endif %}
+        {% if not video or not video[2] %}
+                -------
+        {% endif %} </span>
         </h4>
 
         </p>
@@ -20,7 +30,7 @@
     </section>
 
     <aside class="mr-5" style="float: right; margin: 0 1.5%; width: 30%;">
-      <h3>Annotations</h3>
+      <h4>Annotations</h4>
       <table class="table d-sm-table-cell">
         <tbody>
           <tr class="table-light">

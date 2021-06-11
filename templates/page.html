@@ -1,22 +1,76 @@
 {% extends 'base.html' %} {% block head %}
 
 <title>Video - Recording</title>
-<script type="text/javascript">
-  // sending a connect request to the server.
-  let timeoutCam = null;
-  var socket = io();
-  $(document).ready(function () {
-    socket.on("connect", function () {
-      socket.emit("my event", { data: "I'm connected" });
-    });
+  <script type="text/javascript">
 
-    // An event handler for a change of value
-    $("button.emoticons").on("click", function (event) {
-      socket.emit("emotionButton", {
-        type: $(this).attr("id"),
-      });
-      return false;
-    });
+    let counter = 0;
+    let socket;
+    let isRecording = false;
+
+    var socket = io();
+
+         $(document).ready(function() {
+
+           // sending a connect request to the server.
+           
+           socket.on('connect', function (){
+             socket.emit('my event', {data:"I'm connected"});
+           });
+
+           // An event handler for a change of value
+           $('button.emoticons').on('click', function (event) {
+             if(isRecording){
+               socket.emit('emotionButton', {
+                 type: $(this).attr('id'),
+                 frameID : counter
+               });
+               return false;
+               }
+             else{
+               alert("You must start recording first");
+             }
+           });
+
+           // An event handler for a change of value
+           $('input.ann').on('keydown', function (event) {
+               if (event.key === 'Enter') {
+                 if(isRecording) {
+
+                 socket.emit('customInput', {
+                   type: $(this).attr('id'),
+                   data: $(this).val(),
+                   frameID: counter
+
+                 });
+               } else {
+                  alert("You must start recording first");
+                 }
+             }
+
+           });
+
+           // An event handler for a change of value
+           $('button.stop').on('click', function (event) {
+             socket.emit('stop_recording', {
+               title: $('input#vid_title').val()
+             });
+           });
+
+          const videoElem = document.querySelector("#videoElement");
+          socket.on("vid", (msg) => {
+            // videoElem.src = "data:image/jpg;base64," + Base64.encode(msg.image);
+            // console.log(msg.video.length);
+            video_src.src = "data:video/mp4;base64," + msg.video;
+            videoElem.load();
+          });
+         });
+         
+         window.onbeforeunload = function () {
+           socket.emit('leaveRecording');
+         }
+      </script>
+{% endblock %}
+
 
     // An event handler for a change of value
     $("input.ann").on("keydown", function (event) {
@@ -58,8 +112,9 @@
       </video>
     </div>
     &nbsp;&nbsp; {% include 'annotations.html' %}
-  </section>
-</section>
+{% block body %}
+
+
 <script type="text/javascript">
   document.getElementById("timer").style.display = "none";
 
