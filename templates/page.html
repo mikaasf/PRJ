@@ -8,6 +8,7 @@
     let counter = 0;
     let socket;
     let isRecording = false;
+    let emotionTimer = 0;
 
          $(document).ready(function() {
 
@@ -17,19 +18,7 @@
              socket.emit('my event', {data:"I'm connected"});
            });
 
-           // An event handler for a change of value
-           $('button.emoticons').on('click', function (event) {
-             if(isRecording){
-               socket.emit('emotionButton', {
-                 type: $(this).attr('id'),
-                 frameID : counter
-               });
-               return false;
-               }
-             else{
-               alert("You must start recording first");
-             }
-           });
+
 
            // An event handler for a change of value
            $('input.ann').on('keydown', function (event) {
@@ -45,6 +34,7 @@
                } else {
                   alert("You must start recording first");
                  }
+               document.querySelector("#custom").innerHTML = "";
              }
 
            });
@@ -56,13 +46,8 @@
              });
            });
 
-           const videoElem = document.querySelector("#videoElement");
-           socket.on('vid',  (msg) => {
-             videoElem.src = "data:image/jpg;base64," + msg.image;
-           });
-
          });
-         
+
          window.onbeforeunload = function () {
            socket.emit('leaveRecording');
          }
@@ -90,14 +75,14 @@
       <div class="col-9">
         <img id="videoElement" src="{{ url_for('video') }}" width="130%">
       </div>
-      &nbsp;&nbsp;
+      &nbsp;&nbsp;&nbsp; &nbsp;
       {% include 'annotations.html' %}
   </section>
   </section>
 <script type="text/javascript">
   function startRecording() {
     if(document.getElementById("changeRec").innerHTML === "Stop &amp; save recording"){
-      isRecording = true;
+      isRecording = false;
       let form = document.createElement("form");
       form.setAttribute("method", "post");
       let container = document.getElementById("video_controls");
@@ -115,6 +100,7 @@
       return;
     }
 
+    isRecording = true;
     let rec_light = document.getElementById("rec");
     rec_light.classList.toggle("Rec");
     let rec_button = document.getElementById("changeRec");

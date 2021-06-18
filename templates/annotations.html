@@ -1,63 +1,215 @@
-     <div>
-        <p><img src="../static/imgs/heartRate.png" style="width: 30px; height: 30px;"> <span id="heart_rate"> -- </span> bpm
-          &nbsp;&nbsp;
-          <img src="../static/imgs/waterDrop.png" style="width: 30px; height: 30px;"> <span id="sudo_rate"> -- </span>
-        </p>
-      </div>&nbsp;&nbsp;
-      <section style="float: right;">
-        <p>
-        <h4>
-          🕒 <span id="date"> {% if video and video[3] %}
+<div>
+    <p><img src="../static/imgs/heartRate.png" style="width: 30px; height: 30px;"> <span id="heart_rate"> -- </span> bpm
+        &nbsp;&nbsp;
+        <img src="../static/imgs/waterDrop.png" style="width: 30px; height: 30px;"> <span id="sudo_rate"> -- </span>
+    </p>
+</div>&nbsp;&nbsp;
+<section style="float: right;">
+    <p>
+    <h4>
+        🕒 <span id="date"> {% if video and video[3] %}
               {{ video[3] }}
         {% endif %}
         {% if not video or not video[3] %}
                 -------
         {% endif %} </span>
-        </h4>
-        <br />
-        <h4>
-          📍 <span id="place"> {% if video and video[2] %}
+    </h4>
+    <br/>
+    <h4>
+        📍 <span id="place">
+        {% if not page == 'on_rec' %}
+        {% if video and video[2] %}
               {{ video[2] }}
         {% endif %}
         {% if not video or not video[2] %}
                 -------
-        {% endif %} </span>
-        </h4>
+        {% endif %}
+        {% endif %}
+        {% if page == 'on_rec' %}
+        <input type="text" name="loc" style="background: white">
+        {% endif %}
+    </span>
+    </h4>
 
-        </p>
+    </p>
 
-      </section>
-    </section>
+</section>
+</section>
 
-    <aside class="mr-5" style="float: right; margin: 0 1.5%; width: 30%;">
-      <h4>Annotations</h4>
-      <table class="table d-sm-table-cell">
+<aside class="mr-5" style="float: right; margin: 0 1.5%; width: 30%;">
+    <h4>Annotations</h4>
+    <table class="table d-sm-table-cell">
         <tbody>
-          <tr class="table-light">
-            <td><button id="happy" class="emoticons ann">🙂</button></td>
-            <td><button id="sleepy" class="emoticons ann">😴</button></td>
-            <td><button id="surprised" class="emoticons ann">😯</button></td>
-          </tr>
-          <tr class="table-light">
-            <td><button id="sad" class="emoticons ann">😔</button></td>
-            <td><button id="angry" class="emoticons ann">😠</button></td>
-            <td><button id="thinking" class="emoticons ann">🤔</button></td>
-          </tr>
+        <tr class="table-light">
+            <td>
+                <button><span role="button" id="happy" class="emoticons ann" onclick="toggleButton(this)"
+                              aria-pressed="false">🙂</span></button>
+            </td>
+            <td>
+                <button><span role="button" id="sleepy" class="emoticons ann" onclick="toggleButton(this)"
+                              aria-pressed="false">😴</span></button>
+            </td>
+            <td>
+                <button><span role="button" id="surprised" class="emoticons ann" onclick="toggleButton(this)"
+                              aria-pressed="false">😯</span></button>
+            </td>
+        </tr>
+        <tr class="table-light col-3">
+            <td>
+                <button><span role="button" id="sad" class="emoticons ann" onclick="toggleButton(this)"
+                              aria-pressed="false">😔</span></button>
+            </td>
+            <td>
+                <button><span role="button" id="angry" class="emoticons ann" onclick="toggleButton(this)"
+                              aria-pressed="false">😠</span></button>
+            </td>
+            <td>
+                <button><span role="button" id="thinking" class="emoticons ann" onclick="toggleButton(this)"
+                              aria-pressed="false">🤔</span></button>
+            </td>
+        </tr>
         </tbody>
         <table class="table">
-          <tbody>
+            <tbody>
             <tr>
-              <td>
-                <div class="ribbon">
-                  <input id="tag" type="text" class="mx-auto ann" placeholder="Type here..."
-                    style="-webkit-text-fill-color:blanchedalmond;">
-                </div>
-              </td>
+                <td>
+                    <div class="ribbon">
+                        <input id="custom" type="text" class="mx-auto ann" placeholder="Type here..."
+                               style="-webkit-text-fill-color:blanchedalmond; background-color: royalblue; border: none;">
+                    </div>
+                </td>
             </tr>
-          </tbody>
+            </tbody>
         </table>
-      </table>
-    </aside>
-    <div>
+    </table>
+
+    <div class="box col-12" style="overflow: auto;
+    height: 45vh;">
+        <table>
+            <ul id="annotations_list" class="list-group" style="list-style-type: none;">
+
+            </ul>
+        </table>
     </div>
-  
+    &nbsp;&nbsp;
+    <div>
+        <button id="saveChanges" class="btn btn-light" onclick="saveChanges()" disabled>Save changes</button>
+    </div>
+</aside>
+<div>
+</div>
+<script>
+
+    let socket;
+    let newID = 0;
+
+    $(document).ready(function () {
+
+        // sending a connect request to the server.
+        socket = io();
+
+        socket.on('connect', function () {
+            socket.emit('my event', {data: "I'm connected"});
+            socket.emit('ask for json');
+            socket.emit('ask for id');
+        });
+
+        socket.on('newID', function (data) {
+            newID = data.id;
+        });
+    });
+
+    function toggleButton(element) {
+        let emotionButtons = document.querySelectorAll(".emoticons");
+        // Check to see if the button is pressed
+        let pressed = (element.getAttribute("aria-pressed") === "true");
+        if (pressed) {
+            //console.log("unpressed " + element.id);
+            element.parentElement.style.background = "";
+            if (counter < emotionTimer) {
+                let temp = counter;
+                counter = emotionTimer;
+                emotionTimer = temp;
+            }
+            socket.emit('emotionButton', {
+                type: $(element).attr('id'),
+                frameID: counter,
+                duration: counter - emotionTimer
+            });
+        } else {
+            for (let i = 0; i < emotionButtons.length; i++) {
+                if (emotionButtons.item(i) !== element)
+                    console.log("unpressed " + emotionButtons.item(i).id);
+                emotionButtons.item(i).parentElement.style.background = "";
+                emotionButtons.item(i).setAttribute("aria-pressed", false);
+
+            }
+            emotionTimer = vid.currentTime;
+            element.parentElement.style.background = "greenyellow";
+
+        }
+        // Change aria-pressed to the opposite state
+        element.setAttribute("aria-pressed", !pressed);
+        console.log("clicked " + element.id);
+        addAnnotationToList([element.id, newID, counter, counter - emotionTimer], true);
+    }
+
+    let background_color_emotions = "lightgoldenrodyellow";
+    let background_color_others = "powderblue";
+
+    function addAnnotationToList(annotation, newAnnot) {
+        let background;
+        if(annotation[0] === "happy" || annotation[0] === "sad" || annotation[0] === "surprised" || annotation[0] === "sleepy" || annotation[0] === "angry" || annotation[0] === "thinking" || annotation[0] === "disguised"){
+            background = background_color_emotions;
+        }
+        else{
+            background = background_color_others
+        }
+        let defaultTime = 5;
+        if (annotation[3] === null)
+            annotation[3] = annotation[2] + defaultTime;
+        let button_edit = "<button onclick='editAnnot(this)' id=\"" + "edit_" + annotation[1]['id'] + "\" class=\"edit_ann\">✎</button>";
+        let button_del = "<button onclick='deleteAnnot(this)' id=\"" + "del_" + annotation[1]['id'] + "\" class=\"delete_ann\">x</button>";
+        let annot_html = '<input style="background: ' + background + '; color: #222222" type="text" disabled value="' + annotation[0] + '"><span style="float: right"><small><input type="number" disabled value="' + annotation[2] + '" style="background: ' + background + '; color: #222222">' + ' &rbarr; ' + '<input type="number" disabled value="' + annotation[3] + '" style="background: ' + background + '; color: #222222"></small>'
+        $('#annotations_list').prepend('<li class="list-group-item" style="background: ' + background + ';">' + annot_html + button_edit + button_del + '</span></li>');
+        if (newAnnot)
+            document.getElementById("saveChanges").disabled = false;
+    }
+
+    function editAnnot(btn) {
+        if (btn.parentNode.parentNode.childNodes.item(0).disabled) {
+            btn.parentNode.parentNode.childNodes.item(0).disabled = false;
+            btn.parentNode.childNodes.item(0).childNodes.item(0).disabled = false;
+            btn.parentNode.childNodes.item(0).childNodes.item(2).disabled = false;
+            btn.innerHTML = "Save &check;"
+            return;
+        }
+        console.log("edited ")
+        socket.emit('editAnnotation', {
+            idAnnotation: btn.getAttribute('id').split("_")[1],
+            newValue: btn.parentNode.parentNode.childNodes.item(0).value,
+            newInitFrame: btn.parentNode.childNodes.item(0).childNodes.item(0).value,
+            newDuration: btn.parentNode.childNodes.item(0).childNodes.item(2).value
+        });
+        btn.parentNode.parentNode.childNodes.item(0).disabled = true;
+        btn.parentNode.childNodes.item(0).childNodes.item(0).disabled = true;
+        btn.parentNode.childNodes.item(0).childNodes.item(2).disabled = true;
+        btn.innerHTML = "✎";
+        document.getElementById("saveChanges").disabled = false;
+    }
+
+    function deleteAnnot(btn) {
+        console.log("deleting " + btn.getAttribute('id'));
+        socket.emit('deleteAnnotation', {
+            idAnnotation: btn.getAttribute('id').split("_")[1]
+        });
+        document.getElementById("annotations_list").removeChild(btn.parentNode.parentNode)
+    }
+
+    function saveChanges() {
+        socket.emit('saveChanges');
+        document.getElementById("saveChanges").disabled = true;
+
+    }
+
+</script>

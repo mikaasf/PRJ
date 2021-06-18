@@ -7,32 +7,96 @@
 
 {% block body %}
 
-  <!-- 16:9 aspect ratio 
+<!-- 16:9 aspect ratio
 <div class="embed-responsive embed-responsive-16by9">
-  //<iframe class="embed-responsive-item"></iframe>iframe
-  <video>
+//<iframe class="embed-responsive-item"></iframe>iframe
+<video>
 
-  </video>
+</video>
 </div> -->
 
-  <section>
+<section>
     <section style="float: left; margin: 0 1.5%; width: 63%;">
         <h3 id="vid_title">
-        {% if video %}
-              {{ video[0] }}
-        {% endif %}
-        {% if not video %}
-                Video Title
-        {% endif %}
+            {% if video %}
+            {{ video[0] }}
+            {% endif %}
+            {% if not video %}
+            Video Title
+            {% endif %}
 
-        <button class="notRec rec-button" disabled></button></h3>
+            <button class="notRec rec-button" disabled></button>
+        </h3>
 
-      <video class="col-12" controls autoplay preload="auto">
-          <source src="{{ url_for('get_video', idVideo=idV) }}" type="video/mp4">
-          Your browser does not support the video tag :(
+        <video id="video_player" class="col-12" controls preload="auto" muted="true">
+            <source src="{{ url_for('static', filename=path) }}" type="video/mp4">
+            Your browser does not support the video tag :(
 
-      </video>
-      {% include 'annotations.html' %}
- </section>
-  </section>
+        </video>
+        &nbsp; &nbsp;
+        {% include 'annotations.html' %}
+
+    </section>
+
+</section>
+
+<script type="text/javascript">
+    let vid = document.getElementById("video_player");
+    let counter = 0;
+
+    vid.ontimeupdate = function () {
+        console.log("Time: " + vid.currentTime);
+        counter = vid.currentTime;
+    };
+    let emotionTimer = 0;
+    let noChanges = true;
+
+    $(document).ready(function () {
+
+
+        socket.on('annotations_json', (data) => {
+            console.log(data.data);
+            let annotations = data.data['annotations'];
+            let emotions = annotations['emotions'];
+            let detected = emotions['detected'];
+            let manual = emotions['custom'];
+            if (manual !== undefined) {
+                for (let i = 0; i < manual.length; i++) {
+                    if (manual[i] !== undefined)
+                        addAnnotationToList(manual[i], false);
+                }
+            }
+            if (detected !== undefined) {
+                for (let i = 0; i < detected.length; i++) {
+                    addAnnotationToList(detected[i], false);
+                }
+            }
+        });
+
+
+        // An event handler for a change of value
+        $('input.ann').on('keydown', function (event) {
+            if (event.key === 'Enter') {
+
+                socket.emit('customInput', {
+                    type: $(this).attr('id'),
+                    data: $(this).val(),
+                    frameID: counter
+
+                });
+                document.querySelector("#custom").innerHTML = "";
+                console.log("sent " + $(this).val());
+
+                addAnnotationToList([$(this).val(), newID, counter, null], true);
+            }
+
+        });
+
+    });
+
+    window.onbeforeunload = function () {
+        socket.emit('leaveRecording');
+    }
+
+</script>
 {% endblock %}
