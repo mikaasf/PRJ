@@ -49,8 +49,6 @@ table tbody tr td {
     width:        200px;                  /* Increase element Width */
   }
 
-input[type="text"], textarea { background-color: royalblue; border: none;}
-
 .Rec{
 	animation-name: pulse;
 	animation-duration: 1.5s;
@@ -72,6 +70,17 @@ input[type="text"], textarea { background-color: royalblue; border: none;}
 	margin: 18px;
 	outline: none;
 }
+
+span [role="button"] {
+    padding: 10px;
+    border: 2px solid transparent;
+}
+
+span [role="button"][aria-pressed="true"] {
+    border: 10px solid #000;
+    background: greenyellow;
+}
+
 
 @keyframes pulse{
 	0%{
