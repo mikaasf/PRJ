@@ -1,31 +1,33 @@
-import mimetypes
 import re
 import secrets
-from time import time
+import time
 from urllib.parse import urlparse, urljoin
 import os
-from zlib import adler32
-
 import cv2
 import flask
 import numpy as np
-from flask import Flask, render_template, request, redirect, url_for, make_response, session, Response, \
-    stream_with_context, send_from_directory, send_file, copy_current_request_context
+from flask import Flask, render_template, request, redirect, url_for, make_response, session, Response
 from flaskext.mysql import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
-from zmq.utils.strtypes import unicode
 import subprocess
 from send_frame_handler import SendFrame
 from datetime import datetime
 import urllib
 import json
 
-
-UPLOAD_DIRECTORY = "./static/videos"
+UPLOAD_DIRECTORY = os.path.join(".", "static", "videos")  # "./static/videos"
+JSON_DIRECTORY = os.path.join(UPLOAD_DIRECTORY, "json")  # UPLOAD_DIRECTORY + "/json"
+THUMBNAILS_DIRECTORY = os.path.join(UPLOAD_DIRECTORY, "thumbnails")  # UPLOAD_DIRECTORY + "/thumbnails"
 
 if not os.path.exists(UPLOAD_DIRECTORY):
     os.makedirs(UPLOAD_DIRECTORY)
+
+if not os.path.exists(JSON_DIRECTORY):
+    os.makedirs(JSON_DIRECTORY)
+
+if not os.path.exists(THUMBNAILS_DIRECTORY):
+    os.makedirs(THUMBNAILS_DIRECTORY)
 
 ALLOWED_EXTENSIONS = {'mpeg', 'mp4'}
 # ==================================
@@ -35,7 +37,7 @@ app.secret_key = secrets.token_bytes(16)
 
 # MySQL configurations
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'QueroPote2026*'
+app.config['MYSQL_DATABASE_PASSWORD'] = ''
 app.config['MYSQL_DATABASE_DB'] = 'projeto'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 # file upload configurations
@@ -48,6 +50,8 @@ db_con = db.connect()
 
 socketio = SocketIO(app, cors_allowed_origins="*")
 com_socket_handler = None
+
+anotations = None
 
 
 # ==================================
@@ -71,7 +75,7 @@ def execute_one_query(query, params=None, fetchall=False):
         cursor.close()
         print(query)
     except Exception as e:
-        print("Problem inserting into db: " + str(e))
+        print("Problem accessing database - error: " + str(e))
         return False
     return result
 
@@ -276,13 +280,19 @@ def home():
     if com_socket_handler:
         com_socket_handler.close_socket()
     if request.method == 'POST':
-        vid_title = request.form['vid_title']
+        if 'vid_title' in request.form:
+            vid_title = request.form['vid_title']
+        else:
+            vid_title = "Untitled"
         # todo fetch & store extra parameters according to recorded video
         print("title", vid_title)
-        recTime = ""
-        location = ""
+        recTime = time.strftime("%Y-%m-%d %H:%M:%S")
+        if 'loc' in request.form:
+            location = request.form['loc']
+        else:
+            location = ""
         video_file = None
-        generate_json(session['idVideo'])
+        generate_json_range(session['idVideo'])
         insert_video_db(session['username'], video_file, recTime, location, vid_title)
         return redirect(url_for('after_recording', idVideo=session['idVideo']))
     if 'username' in session:
@@ -340,7 +350,7 @@ def myvideos():
             v[0] = urllib.parse.unquote(v[0])
             thumbnail = execute_one_query("SELECT imagePath FROM thumbnail WHERE idVideo=%s", v[2])
             if not thumbnail:
-                v[3] = os.path.join(app.config['UPLOAD_FOLDER'], "thumbnails", "default-thumbnail.png")
+                v[3] = os.path.join(THUMBNAILS_DIRECTORY, "default-thumbnail.png")
             else:
                 v[3] = np.asarray(thumbnail)[0]
 
@@ -393,7 +403,7 @@ def insert_video_db(user, file, rec_time, location, titulo=None):
 
 def create_thumbnail(video_path, id_video):
     filename = "th_" + str(id_video) + '.jpg'
-    path = os.path.join(UPLOAD_DIRECTORY, "thumbnails", filename)
+    path = os.path.join(THUMBNAILS_DIRECTORY, filename)
     insert("INSERT INTO thumbnail VALUES (%s, %s)", [id_video, path])
     subprocess.call(
         ['ffmpeg', '-i', os.path.abspath(video_path), '-ss', '00:00:03.000', '-vframes', '1', path,
@@ -412,67 +422,17 @@ def after_recording(idVideo):
         # todo changes (extra parameters) according to selected video
         return redirect(url_for('home'))
     if 'username' in session:
+        session['idVideo'] = idVideo
         video = execute_one_query(
             "SELECT title, uploadDate, location, recTime, pathName FROM video WHERE username=%s AND idVideo=%s",
             [session['username'], idVideo])
+        if not os.path.exists(video[4]):
+            return make_response('Video unavailable', 400)
+        path = str(video[4]).split("static/")[1]
         return render_template('after_recording.html', page='pos_rec', name=get_user_data(session['username']),
-                               video=video, idV=idVideo)
+                               video=video, path=path)
     else:
         return redirect(url_for('login'))
-
-
-def send_file_partial(path):
-    """
-        Simple wrapper around send_file which handles HTTP 206 Partial Content
-        (byte ranges)
-        (if it has any)
-    """
-
-    range_header = request.headers.get('Range', None)
-    if not range_header:
-        return send_file(path)
-
-    size = os.path.getsize(os.path.abspath(path))
-    byte1, byte2 = 0, None
-
-    m = re.search('(\d+)-(\d*)', range_header)
-    g = m.groups()
-
-    if g[0]:
-        byte1 = int(g[0])
-    if g[1]:
-        byte2 = int(g[1])
-
-    length = size - byte1
-    if byte2 is not None:
-        length = byte2 - byte1 + 1
-
-    with open(path, 'rb') as f:
-        f.seek(byte1)
-        data = f.read(length)
-
-    rv = Response(data,
-                  206,
-                  mimetype=mimetypes.guess_type(path)[0],
-                  direct_passthrough=True)
-    rv.headers.add('Content-Range', 'bytes {0}-{1}/{2}'.format(byte1, byte1 + length, size))
-    rv.set_etag('flask-%s-%s-%s' % (
-        os.path.getmtime(path),
-        os.path.getsize(path),
-        adler32(
-            path.encode('utf8') if isinstance(path, unicode)
-            else path
-        ) & 0xffffffff
-    ))
-    rv.headers.add('Cache-Control', 'no-cache')
-    return rv
-
-
-@app.route('/get_video/<idVideo>', methods=['GET'])
-def get_video(idVideo):
-    path, name = execute_one_query("SELECT pathName, title FROM video WHERE username=%s AND idVideo=%s",
-                                   [session['username'], idVideo])
-    return send_file_partial(path)
 
 
 # ==================================
@@ -482,8 +442,9 @@ def get_video(idVideo):
 @socketio.on('emotionButton')
 def receive_emotion(message):
     print("clicked", message['type'])
-    insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s, %s, %s)",
-           [message['type'], message['frameID'], session['idVideo'], None, None])
+    insert("INSERT INTO videoAnnotation(emotionType, idFrame, idVideo, customText, duration) VALUES (%s, %s, %s, %s, %s)",
+           [message['type'], message['frameID'], session['idVideo'], None, message['duration']])
+    socketio.emit("newID", {'id' : int(np.asarray(execute_one_query("SELECT `AUTO_INCREMENT` FROM  INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'videoAnnotation'"))) - 1})
 
 
 # Handler for a message received over 'customInput' channel
@@ -491,14 +452,62 @@ def receive_emotion(message):
 def receive_input(message):
     print("input", message['type'], message['data'])
 
-    insert("INSERT INTO videoAnnotation VALUES (%s, %s, %s, %s, %s)",
+    insert("INSERT INTO videoAnnotation(emotionType, idFrame, idVideo, customText, duration) VALUES (%s, %s, %s, %s, %s)",
            [message['type'], message['frameID'], session['idVideo'], message['data'], None])
+    id_request_reply()
+
+
+@socketio.on('deleteAnnotation')
+def remove_annotation(message):
+    print("remove", message['idAnnotation'])
+
+    insert("DELETE FROM videoAnnotation WHERE idAnnotation = %s",
+           message['idAnnotation'])
+
+
+@socketio.on('editAnnotation')
+def edit_annotation(message):
+    print("edited", message['idAnnotation'], message['newValue'], message['newInitFrame'], message['newDuration'])
+    all_annotations = np.asarray(
+        execute_one_query("SELECT emotionType, emotion FROM annotation", fetchall=True))
+
+    emotions = all_annotations[all_annotations[:, 1] == '1', 0]
+    if message['newValue'] in emotions:
+        execute_one_query(
+            "UPDATE videoAnnotation SET emotionType=%s, idFrame=%s, duration=%s, customText=%s WHERE idAnnotation = %s",
+            [message['newValue'], message['newInitFrame'], message['newDuration'], "",
+             message['idAnnotation']])
+    else:
+        execute_one_query(
+            "UPDATE videoAnnotation SET customText=%s, idFrame=%s, duration=%s, emotionType=%s WHERE idAnnotation = %s",
+            [message['newValue'], message['newInitFrame'], message['newDuration'], "custom", message['idAnnotation']])
+
+
+@socketio.on('saveChanges')
+def save_annotations():
+    print("saved annotations video: ", session['idVideo'])
+    generate_json_range(session['idVideo'])
 
 
 # Handler for a message received over 'my event' channel
 @socketio.on('my event')
 def connect_input(message):
     print("input", message['data'])
+
+
+@socketio.on('ask for id')
+def id_request_reply():
+    socketio.emit("newID", {'id' : int(np.asarray(execute_one_query("SELECT `AUTO_INCREMENT` FROM  INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'videoAnnotation'"))) - 1})
+
+
+@socketio.on('ask for json')
+def json_request_reply():
+    json_path = os.path.join(JSON_DIRECTORY, "vid_an" + session['idVideo'] + ".json")
+    if os.path.exists(json_path):
+        file = open(json_path, 'r')
+        json_file = json.load(file)  # else socketio.emit("annotations_json", "")
+        file.close()
+        socketio.emit("annotations_json", {'data': json_file})
 
 
 # Handler for a message received over 'leaveRecording' channel
@@ -554,11 +563,66 @@ def generate_json(id_video):
 
     json_vid["other_data"] = {}
     string_json = json.dumps(json_vid)
-    with open(os.path.join(UPLOAD_DIRECTORY, "json", filename) + '.json', 'w') as f:
+    with open(os.path.join(JSON_DIRECTORY, filename) + '.json', 'w') as f:
+        f.write(string_json)
+    return string_json
+
+
+def generate_json_range(id_video):
+    filename = "vid_an" + str(id_video)
+
+    annotations = np.asarray(
+        execute_one_query(
+            "SELECT emotionType, idAnnotation, idFrame, duration, customText FROM videoAnnotation WHERE idVideo = %s ORDER BY idFrame ASC",
+            id_video, True))
+
+    signals = np.asarray(
+        execute_one_query(
+            "SELECT dataType, valueData, idFrame, duration FROM sensorData WHERE idVideo = %s", id_video, True))
+
+    all_annotations = np.asarray(
+        execute_one_query("SELECT emotionType, emotion FROM annotation", fetchall=True))
+
+    emotions = all_annotations[all_annotations[:, 1] == '1', 0]
+    custom = all_annotations[all_annotations[:, 1] == '2', 0]
+    others = all_annotations[all_annotations[:, 1] == '3', 0]
+
+    json_vid = {"video": id_video}
+
+    bool_array_emotions = np.isin(annotations[:, 0], emotions)
+    emotions_arr = annotations[bool_array_emotions, 0:4]
+
+    bool_array_custom = np.isin(annotations[:, 0], custom)
+    custom_arr = annotations[bool_array_custom, 1:]
+
+    # get last column to be the first
+    custom_arr[:, [3, 0]] = custom_arr[:, [0, 3]]
+    custom_arr[:, [3, 1]] = custom_arr[:, [1, 3]]
+    custom_arr[:, [3, 2]] = custom_arr[:, [2, 3]]
+
+    bool_array_others = np.isin(annotations[:, 0], others)
+    others_arr = annotations[bool_array_others]
+
+    for i in range(len(emotions_arr[:, 1])):
+        emotions_arr[i, 1] = {"id": emotions_arr[i, 1]}
+
+    for i in range(len(custom_arr[:, 1])):
+        custom_arr[i, 1] = {"id": custom_arr[i, 1]}
+
+    json_emotions = {"emotions": {"detected": list(emotions_arr.tolist()),
+                                  "custom": list(custom_arr.tolist())},
+                     "body_signals": list(signals.tolist()),
+                     "others": list(others_arr.tolist())}
+
+    json_vid['annotations'] = json_emotions
+    json_vid["other_data"] = {}
+
+    string_json = json.dumps(json_vid)
+    with open(os.path.join(JSON_DIRECTORY, filename) + '.json', 'w') as f:
         f.write(string_json)
     return string_json
 
 
 if __name__ == "__main__":
     # app.run(debug=True, port=5001, threaded=True)
-    socketio.run(app, debug=True, port=5003)
+    socketio.run(app, debug=True, port=5001)
