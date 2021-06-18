@@ -14,8 +14,9 @@ base -> navbar
 
 annotations -> aside elements
 
-login, signup & update profile
+login, signup, upload video & update profile
 
 
 **TODO**:
-- timeline do vídeo (para rever anotações)
+- interligar processamento deepface
+- ligar, armazenar e apresentar dados fisiológicos provenientes da Emotibit
