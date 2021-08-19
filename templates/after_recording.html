@@ -42,17 +42,24 @@
 
 <script type="text/javascript">
     let vid = document.getElementById("video_player");
+    // current timestamp of the video
     let counter = 0;
+    let noChanges = true;
 
     vid.ontimeupdate = function () {
         console.log("Time: " + vid.currentTime);
         counter = vid.currentTime;
+        for(let key in ids_time){
+            if(ids_time[key][0] < counter + 1 && ids_time[key][1] > counter){
+                document.getElementById("ann_" + key).scrollIntoView();
+                break;
+            }
+        }
     };
+    // timestamp when user clicked added an annotation
     let emotionTimer = 0;
-    let noChanges = true;
 
     $(document).ready(function () {
-
 
         socket.on('annotations_json', (data) => {
             console.log(data.data);
@@ -82,12 +89,11 @@
                     type: $(this).attr('id'),
                     data: $(this).val(),
                     frameID: counter
-
                 });
                 document.querySelector("#custom").innerHTML = "";
                 console.log("sent " + $(this).val());
 
-                addAnnotationToList([$(this).val(), newID, counter, null], true);
+                addAnnotationToList([$(this).val(), {'id': newID}, counter, null], true);
             }
 
         });
