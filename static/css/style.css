@@ -81,6 +81,23 @@ span [role="button"][aria-pressed="true"] {
     background: greenyellow;
 }
 
+form {
+  display: inline-block;
+}
+.field {
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+}
+label {
+  padding-left: 5px;
+  transition: all 0.3s ease-in;
+  transform: translateY(20px);
+  pointer-events: none;
+}
+.moveUp {
+  transform: translateY(-2px);
+}
 
 @keyframes pulse{
 	0%{
