@@ -1,7 +1,7 @@
 use projeto;
 SET GLOBAL max_allowed_packet = 64 * 1048576; # 64 MB
 
-drop table if exists person, video, annotation, videoAnnotation, thumbnail, currentVideoID;
+drop table if exists person, video, annotation, videoAnnotation, thumbnail, currentVideoID, currentAnnotationID, currentSensorDataID;
 
 CREATE TABLE IF NOT EXISTS person (
     username VARCHAR(20) PRIMARY KEY,
@@ -39,38 +39,51 @@ CREATE TABLE IF NOT EXISTS annotation (
 
 CREATE TABLE IF NOT EXISTS videoAnnotation (
     emotionType VARCHAR(50),
-	idFrame bigint,
+	iniTime tinytext,
 	idVideo int,
     customText VARCHAR(80),
     duration tinytext,
 	idAnnotation bigint PRIMARY KEY AUTO_INCREMENT,
-	# CONSTRAINT fk_videoAnnotation_frame FOREIGN KEY (idFrame, idVideo)
-       # REFERENCES frame (idFrame, idVideo),
 	CONSTRAINT fk_videoAnnotation_annotation FOREIGN KEY (emotionType)
         REFERENCES annotation (emotionType)
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS sensorData (
     dataType VARCHAR(50),
-	idFrame bigint,
+	iniTime tinytext,
 	idVideo int,
     valueData VARCHAR(80),
-    duration tinytext
+    duration tinytext,
+    idData bigint PRIMARY KEY AUTO_INCREMENT
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
 
-
 create table if not exists currentVideoID (
- idVideo int
+ idVideo int not null
 );
 
-insert into currentvideoid set idVideo=(select max(idVideo) from video) + 1;
+create table if not exists currentAnnotationID (
+ idAnnotation bigint not null
+);
+
+create table if not exists currentSensorDataID (
+ idData bigint not null
+);
+
+#if never created previous main tables
+insert into currentVideoID set idVideo=1;
+insert into currentannotationid set idAnnotation = 1;
+insert into currentSensorDataID set idData = 1;
+
+#else
+#insert into currentVideoID set idVideo=(select max(idVideo) from video) + 1;
+#insert into currentannotationid set idAnnotation=(select max(idAnnotation) from videoAnnotation) + 1;
+#insert into currentSensorDataID set idData=(select max(idData) from sensorData) + 1;
 
 INSERT INTO annotation VALUES ("happy", Null, 1);
 INSERT INTO annotation VALUES ("sad", Null, 1);
-INSERT INTO annotation VALUES ("sleepy", Null, 1);
+INSERT INTO annotation VALUES ("afraid", Null, 1);
 INSERT INTO annotation VALUES ("angry", Null, 1);
 INSERT INTO annotation VALUES ("surprised", Null, 1);
-INSERT INTO annotation VALUES ("thinking", Null, 1);
+INSERT INTO annotation VALUES ("disgusted", Null, 1);
 INSERT INTO annotation VALUES ("custom", Null, 2);
 INSERT INTO annotation VALUES ("other", Null, 3);
-
