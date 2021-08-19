@@ -4,6 +4,6 @@
 
 ## Database:
 
-### `bd.sql` -> Relational database initial code
+### `bd.sql` -> Relational database tables creation code
 
-_possibilities yet to decide_: relational database with NoSQL features (MySQL Document Store)
+_other possibilities_: relational database with NoSQL features (MySQL Document Store)
