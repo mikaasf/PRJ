@@ -337,13 +337,19 @@ def update_profile():
     return redirect(url_for('login'))
 
 
-@app.route('/myvideos', methods=['POST', 'GET'])
-def myvideos():
+@app.route('/myvideos', methods=['POST', 'GET'], defaults={'page': 1})
+@app.route('/myvideos?page=<int:page>')
+def myvideos(page):
     if request.method == 'POST':
         return redirect(url_for('home'))
     if 'username' in session:
+        perpage = 12
+        total_pages = int(np.ceil(np.asarray(execute_one_query("select count(*) from video"))[0] / perpage))
+        startat = (page - 1) * perpage
+
+        query = "SELECT title, uploadDate, idVideo FROM video WHERE username=%s ORDER BY uploadDate DESC LIMIT " + str(startat) + ", " + str(perpage)
         videos = np.asarray(
-            execute_one_query("SELECT title, uploadDate, idVideo FROM video WHERE username=%s ORDER BY uploadDate DESC",
+            execute_one_query(query,
                               session['username'], True))
 
         if len(videos) > 0:
@@ -358,7 +364,7 @@ def myvideos():
                     v[3] = np.asarray(thumbnail)[0]
 
         return render_template('myvideos.html', page='myvideos', name=get_user_data(session['username']),
-                               videos=tuple(videos))
+                               videos=tuple(videos), pagination=[page, total_pages])
     else:
         return redirect(url_for('login'))
 
@@ -661,4 +667,4 @@ def generate_json_range(id_video):
 
 if __name__ == "__main__":
     # app.run(debug=True, port=5001, threaded=True)
-    socketio.run(app, debug=True, port=5000)
+    socketio.run(app, host="127.0.0.1", debug=True, port=5000)
