@@ -94,7 +94,7 @@ class Camera (threading.Thread):
 
                     # Show images
                     if self.__isDebug:
-                        cv2.imshow('RealSense', color_image)
+                        cv2.imshow('Normal Camera', color_image)
 
                 key: int = cv2.waitKey(1)
 

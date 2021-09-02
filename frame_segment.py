@@ -7,7 +7,7 @@ import numpy as np
 
 
 MAX_DGRAM: int = 2**16
-MAX_STREAM_DGRAM: int = MAX_DGRAM - 64  # minus 64 bytes in case UDP frame overflown
+MAX_STREAM_DGRAM: int = MAX_DGRAM - 64  # minus 64 bytes in case UDP frame overflow
 
 
 class FrameSegment(object):
