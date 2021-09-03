@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS thumbnail (
     idVideo int PRIMARY KEY,
     imagePath VARCHAR(150) NOT NULL,
 	CONSTRAINT fk_frame FOREIGN KEY (idVideo)
-        REFERENCES video (idVideo)
+        REFERENCES video (idVideo) ON DELETE CASCADE
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS annotation (
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS videoAnnotation (
     duration tinytext,
 	idAnnotation bigint PRIMARY KEY AUTO_INCREMENT,
 	CONSTRAINT fk_videoAnnotation_annotation FOREIGN KEY (emotionType)
-        REFERENCES annotation (emotionType)
+        REFERENCES annotation (emotionType) ON DELETE CASCADE
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS sensorData (
@@ -87,3 +87,4 @@ INSERT INTO annotation VALUES ("surprised", Null, 1);
 INSERT INTO annotation VALUES ("disgusted", Null, 1);
 INSERT INTO annotation VALUES ("custom", Null, 2);
 INSERT INTO annotation VALUES ("other", Null, 3);
+
