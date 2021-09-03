@@ -41,7 +41,7 @@ app.secret_key = secrets.token_bytes(16)
 
 # MySQL configurations
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = 'QueroPote2026*'
+app.config['MYSQL_DATABASE_PASSWORD'] = ''
 app.config['MYSQL_DATABASE_DB'] = 'projeto'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 # file upload configurations
