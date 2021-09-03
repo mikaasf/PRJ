@@ -116,6 +116,8 @@
                    },
                    error: function (){
                        $('#loaderimg').hide();
+                       $('.progress-bar').removeClass('bg-info');
+                       $('.progress-bar').addClass('bg-danger');
                    },
                    resetForm: true
                });

@@ -155,6 +155,21 @@
         });
     });
 
+    function formatTimeHHMMSS(time) {
+        let sec_num = parseInt(time, 10);
+        let minutes = Math.floor(sec_num / 60);
+        let seconds = sec_num - (minutes * 60);
+
+        if (minutes < 10) {minutes = "0"+minutes;}
+        if (seconds < 10) {seconds = "0"+seconds;}
+        return minutes+':'+seconds;
+    }
+
+    function formatToSeconds(time) {
+        let array_time = time.split(":");
+        return (+array_time[0]) * 60 + (+array_time[1]);
+    }
+
     function toggleButton(element) {
         let emotionButtons = document.querySelectorAll(".emoticons");
         // Check to see if the button is pressed
@@ -215,12 +230,12 @@
 
         ids_time[annotation[1]['id']] = [parseFloat(annotation[2]), duration];
 
-        duration = duration / 100;
-        annotation[2] = annotation[2] / 100;
+        duration = formatTimeHHMMSS(duration);
+        annotation[2] = formatTimeHHMMSS(annotation[2]);
 
         let button_edit = "<button title='Edit Annotation' onclick='editAnnot(this)' id=\"" + "edit_" + annotation[1]['id'] + "\" class=\"edit_ann\">✎</button>";
         let button_del = "<button title='Remove Annotation' onclick='deleteAnnot(this)' id=\"" + "del_" + annotation[1]['id'] + "\" class=\"delete_ann\">x</button>";
-        let annot_html = '<input style="background: ' + background + '; color: #222222" type="text" disabled value="' + annotation[0] + '"><span style="float: right"><small><input disabled value="' + annotation[2].toFixed(2).toString().replace('.', ':') + '" style="background: ' + background + '; color: #222222">' + ' &rbarr; ' + '<input disabled value="' + duration.toFixed(2).toString().replace('.', ':') + '" style="background: ' + background + '; color: #222222"></small>'
+        let annot_html = '<input style="background: ' + background + '; color: #222222" type="text" disabled value="' + annotation[0] + '"><span style="float: right"><small><input disabled value="' + annotation[2] + '" style="background: ' + background + '; color: #222222">' + ' &rbarr; ' + '<input disabled value="' + duration + '" style="background: ' + background + '; color: #222222"></small>'
         $('#annotations_list').prepend('<li class="list-group-item" style="background: ' + background + ';" id="ann_' + annotation[1]['id'] + '">' + annot_html + button_edit + button_del + '</span></li>');
         if (newAnnot)
             unsavedChanges();
@@ -239,8 +254,8 @@
         socket.emit('editAnnotation', {
             idAnnotation: btn.getAttribute('id').split("_")[1],
             newValue: btn.parentNode.parentNode.childNodes.item(0).value,
-            newInitFrame: btn.parentNode.childNodes.item(0).childNodes.item(0).value.replace(':', '.') * 100,
-            newDuration: btn.parentNode.childNodes.item(0).childNodes.item(2).value.replace(':', '.') * 100
+            newInitFrame: formatToSeconds(btn.parentNode.childNodes.item(0).childNodes.item(0).value),
+            newDuration: formatToSeconds(btn.parentNode.childNodes.item(0).childNodes.item(2).value)
         });
         btn.parentNode.parentNode.childNodes.item(0).disabled = true;
         btn.parentNode.childNodes.item(0).childNodes.item(0).disabled = true;
