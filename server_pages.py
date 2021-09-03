@@ -41,7 +41,7 @@ app.secret_key = secrets.token_bytes(16)
 
 # MySQL configurations
 app.config['MYSQL_DATABASE_USER'] = 'root'
-app.config['MYSQL_DATABASE_PASSWORD'] = ''
+app.config['MYSQL_DATABASE_PASSWORD'] = 'QueroPote2026*'
 app.config['MYSQL_DATABASE_DB'] = 'projeto'
 app.config['MYSQL_DATABASE_HOST'] = 'localhost'
 # file upload configurations
@@ -379,41 +379,41 @@ def import_video():
             if os.path.exists(full_path):
                 return jsonify({'msg': 'File already exists in the database', 'filenameimage': "", 'linkVideo': ""})
             if allowed_file(file.filename):
+                recTime = None
+                if 'datetimeRec' in request.form and request.form['datetimeRec'] != "":
+                    recTime = str(request.form['datetimeRec']).replace("T", " ") + ":00"
+                if 'dateRec' in request.form and request.form['dateRec'] != "":
+                    date = request.form['dateRec']
+                    if date != '' and datetime.strptime(date, "%d/%m/%Y").date() < datetime.today():
+                        recTime = date if date != '' else None
+                        if 'timeRec' in request.form:
+                            timeR = request.form['timeRec']
+                            if timeR != '':
+                                recTime += recTime + timeR + ":00"
+                            else:
+                                recTime = date + "00:00:00"
+                    else:
+                        return jsonify(
+                            {'msg': 'Future dates are not allowed', 'filenameimage': "", 'linkVideo': ""})
+                location = None
+                lat = ""
+                lon = ""
+                if 'latitude' in request.form:
+                    lat = request.form['latitude']
+                if 'longitude' in request.form:
+                    lon = request.form['longitude']
+                if lat != "" and lon != "":
+                    location = lat + ';' + lon
+                print('Saving')
                 with open(os.path.join(UPLOAD_DIRECTORY, filename), "wb") as fp:
-                    recTime = None
-                    if 'datetimeRec' in request.form and request.form['datetimeRec'] != "":
-                        recTime = str(request.form['datetimeRec']).replace("T", " ") + ":00"
-                    if 'dateRec' in request.form:
-                        date = request.form['dateRec']
-                        if date != '' and datetime.strptime(date, "%d/%m/%Y").date() < datetime.today():
-                            recTime = date if date != '' else None
-                            if 'timeRec' in request.form:
-                                timeR = request.form['timeRec']
-                                if timeR != '':
-                                    recTime += recTime + timeR + ":00"
-                                else:
-                                    recTime = date + "00:00:00"
-                        else:
-                            return jsonify(
-                                {'msg': 'Future dates are not allowed', 'filenameimage': "", 'linkVideo': ""})
-                    location = None
-                    lat = ""
-                    lon = ""
-                    if 'latitude' in request.form:
-                        lat = request.form['latitude']
-                    if 'longitude' in request.form:
-                        lon = request.form['longitude']
-                    if lat != "" and lon != "":
-                        location = lat + ';' + lon
-                    print('Saving')
                     file.save(os.path.join(UPLOAD_DIRECTORY, filename))
-                    thumbnail_path, id_video = insert_video_db(session['username'], file, filename, recTime, location,
-                                                               request.form['title'])
-                    msg = "File successfully uploaded: " + file.filename
-                    return jsonify({'msg': msg, 'filenameimage': thumbnail_path,
-                                    'linkVideo': request.base_url.replace('import_video', 'after_recording') + str(id_video)})
-                    # Return 201 CREATED
-                    # return redirect(url_for('myvideos'), 201)
+                thumbnail_path, id_video = insert_video_db(session['username'], file, filename, recTime, location,
+                                                           request.form['title'])
+                msg = "File successfully uploaded: " + file.filename
+                return jsonify({'msg': msg, 'filenameimage': thumbnail_path,
+                                'linkVideo': request.base_url.replace('import_video', 'after_recording') + "/" + str(id_video)})
+                # Return 201 CREATED
+                # return redirect(url_for('myvideos'), 201)
         else:
             print('Redirecting')
             return redirect(url_for('import_video'))
@@ -605,7 +605,7 @@ def generate_json_range(id_video):
 
     annotations = np.asarray(
         execute_one_query(
-            "SELECT emotionType, idAnnotation, iniTime, duration, customText FROM videoAnnotation WHERE idVideo = %s ORDER BY iniTime ASC",
+            "SELECT emotionType, idAnnotation, iniTime, duration, customText FROM videoAnnotation WHERE idVideo = %s ORDER BY idAnnotation DESC",
             id_video, True))
 
     signals = np.asarray(
