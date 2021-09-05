@@ -90,10 +90,9 @@
                     data: $(this).val(),
                     frameID: counter
                 });
-                document.querySelector("#custom").innerHTML = "";
                 console.log("sent " + $(this).val());
-
                 addAnnotationToList([$(this).val(), {'id': newID}, counter, null], true);
+                document.querySelector("#custom").value = "";
             }
 
         });
