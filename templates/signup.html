@@ -6,6 +6,7 @@
     <title>Video Annotation - Sign Up (Form designed by Colorlib)</title>
     <link rel="icon" href="../static/imgs/eyeLogo.png">
     <link rel="stylesheet" href="../static/css/styleregister.css">
+    <script src="{{url_for('static', filename='js/functions.js')}}"></script>
 
 </head>
 <body>
@@ -61,9 +62,6 @@
     </section>
 </div>
 <script>
-    function hide_error(){
-        document.getElementById("error").style.visibility = "hidden";
-    }
     window.onload
     {
             document.getElementById("pass").innerHTML = "";

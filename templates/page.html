@@ -24,6 +24,7 @@
            $('input.ann').on('keydown', function (event) {
                if (event.key === 'Enter') {
                  if(isRecording) {
+                   counter = new Date().getTime() / 1000 - startingTime;
 
                  socket.emit('customInput', {
                    type: $(this).attr('id'),
@@ -80,33 +81,7 @@
   </section>
   </section>
 <script type="text/javascript">
-  function startRecording() {
-    if(document.getElementById("changeRec").innerHTML === "Stop &amp; save recording"){
-      isRecording = false;
-      let form = document.createElement("form");
-      form.setAttribute("method", "post");
-      let container = document.getElementById("video_controls");
-      let elements = [container.childElementCount];
-      let j = 0;
-      while(container.hasChildNodes()){
-        elements[j] = (container.removeChild(container.lastChild));
-        j++;
-      }
-      for (let i = 0; i<elements.length; i++){
-        form.appendChild(elements[i]);
-        console.log(elements[i]);
-      }
-      document.getElementById("video_controls").appendChild(form);
-      return;
-    }
+  let startingTime;
 
-    isRecording = true;
-    let rec_light = document.getElementById("rec");
-    rec_light.classList.toggle("Rec");
-    let rec_button = document.getElementById("changeRec");
-    rec_button.classList.toggle("btn-danger");
-    document.getElementById("changeRec").innerHTML = "Stop & save recording";
-  }
 </script>
-
 {% endblock %}
