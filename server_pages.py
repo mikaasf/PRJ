@@ -11,9 +11,7 @@ from flaskext.mysql import MySQL
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
 import subprocess
-
 from werkzeug.utils import secure_filename
-
 from send_frame_handler import SendFrame
 from datetime import datetime
 import urllib
@@ -65,7 +63,11 @@ def get_cursor_db():
     return db_con.cursor()
 
 
-def execute_one_query(query, params=None, fetchall=False):
+def execute_one_query(query: str, params: list = None, fetchall: bool = False):
+    """ Call this function with the query SQL as first parameter
+    @param query SQL query
+    @param params list of custom values for % values in the query
+    @param fetchall True for getting every result, False to get the first only """
     try:
         cursor = get_cursor_db()
         cursor.execute(query, params)
@@ -82,7 +84,10 @@ def execute_one_query(query, params=None, fetchall=False):
     return result
 
 
-def insert(query, params=None):
+def insert(query: str, params: list = None):
+    """ Call this function with the query SQL Insert as first parameter
+        @param query SQL Insert query
+        @param params list of custom values for % values in the query """
     try:
         cursor = get_cursor_db()
         result = cursor.execute(query, params)
@@ -145,25 +150,26 @@ def login():
     return render_template('login.html', page='login', error=error)
 
 
-def log_the_user_in(username):
+def log_the_user_in(username: str):
+    """ Function to login and redirect the user
+    @param username username of the user who logged in """
     session['username'] = username
     # admin = execute_one_query("SELECT adm FROM person WHERE username = %s", username)
     return redirect(url_for('myvideos'))
 
 
-def valid_login(username, password):
-    # db fetching
+def valid_login(username: str, password: str) -> bool:
+    """ Function to check if login credentials are valid in the database
+    @param username username of the user who wants to log in
+    @param password password of the user who wants to log in """
     account = execute_one_query("SELECT * FROM person WHERE username = %s", username)
-    if account:
-        # if check_password_hash(account[1], password):
-        if check_password_hash(account[1], password):
-            return True
-    return False
+    return account and check_password_hash(account[1], password)
 
 
-def get_user_data(username):
-    # db fetching
-    return session['username'], execute_one_query("SELECT email FROM person WHERE username = %s", username)[0]
+def get_user_data():
+    """ Function to get the username and email of who is logged in """
+    username = session['username']
+    return username, execute_one_query("SELECT email FROM person WHERE username = %s", username)[0]
 
 
 # ==================================
@@ -172,11 +178,11 @@ def get_user_data(username):
 
 @app.route('/logout')
 def logout():
+    """ Function to log out the logged user and redirect to login page"""
     # remove the username from the session if it's there
     if 'username' in session:
         session.pop('username', None)
         session.pop('password', None)
-
     return redirect(url_for('login'))
 
 
@@ -191,26 +197,28 @@ def signup():
     error = None
     if request.method == 'POST':
         if 'name' in request.form and 'pass' in request.form and 'email' in request.form and 're_pass' in request.form:
-            if request.form['pass'] == request.form['re_pass']:
-                username = request.form['name']
-                email = request.form['email']
-                password = request.form['pass']
-                if valid_registration(email, username):
-                    register_user(username, password, email)
-                    return log_the_user_in(username)
-                else:
-                    error = 'That e-mail or username is already registered'
-            elif request.form['pass'] is not "":
-                error = 'Passwords don\'t match'
             if len(request.form['pass']) < 6:
                 error = 'Password must have 6 ou more characters'
+            else:
+                if request.form['pass'] == request.form['re_pass']:
+                    username = request.form['name']
+                    email = request.form['email']
+                    password = request.form['pass']
+                    if valid_registration(email, username):
+                        register_user(username, password, email)
+                        return log_the_user_in(username)
+                    else:
+                        error = 'That e-mail or username is already registered'
+                elif request.form['pass'] is not "":
+                    error = 'Passwords don\'t match'
+
         # the code below is executed if the request method
         # was GET or the credentials were invalid
     return render_template('signup.html', page='signup', error=error)
 
 
-def valid_registration(email, username):
-    # query db
+def valid_registration(email: str, username: str) -> bool:
+    """ Function to check if username and email in registration are available and valid """
     account = execute_one_query("SELECT * FROM person WHERE email = %s OR username = %s", [email, username])
     if account:
         return False
@@ -221,8 +229,8 @@ def valid_registration(email, username):
     return True
 
 
-def register_user(username, password, email):
-    # insert db
+def register_user(username: str, password: str, email: str):
+    """ Function to insert the new user in database """
     insert("INSERT INTO person values (%s, %s, %s, %r)", [username, generate_password_hash(password), email, True])
 
 
@@ -302,8 +310,8 @@ def home():
             com_socket_handler = SendFrame()
             com_socket_handler.start()
         session['idVideo'] = get_and_increment_current_video_id()
-        return render_template("page.html", page='on_rec', name=get_user_data(
-            session['username']))  # , img_test=_convert_image_to_jpeg(cv2.resize(img, (640, 480))))
+        return render_template("page.html", page='on_rec',
+                               name=get_user_data())  # , img_test=_convert_image_to_jpeg(cv2.resize(img, (640, 480))))
 
     return redirect(url_for('login'))
 
@@ -333,7 +341,7 @@ def update_profile():
             else:
                 msg = "Passwords don't match"
     if 'username' in session:
-        return render_template("update_profile.html", page='update', name=get_user_data(session['username']), msg=msg)
+        return render_template("update_profile.html", page='update', name=get_user_data(), msg=msg)
     return redirect(url_for('login'))
 
 
@@ -347,7 +355,8 @@ def myvideos(page):
         total_pages = int(np.ceil(np.asarray(execute_one_query("select count(*) from video"))[0] / perpage))
         startat = (page - 1) * perpage
 
-        query = "SELECT title, uploadDate, idVideo FROM video WHERE username=%s ORDER BY uploadDate DESC LIMIT " + str(startat) + ", " + str(perpage)
+        query = "SELECT title, uploadDate, idVideo FROM video WHERE username=%s ORDER BY uploadDate DESC LIMIT " + str(
+            startat) + ", " + str(perpage)
         videos = np.asarray(
             execute_one_query(query,
                               session['username'], True))
@@ -363,7 +372,7 @@ def myvideos(page):
                 else:
                     v[3] = np.asarray(thumbnail)[0]
 
-        return render_template('myvideos.html', page='myvideos', name=get_user_data(session['username']),
+        return render_template('myvideos.html', page='myvideos', name=get_user_data(),
                                videos=tuple(videos), pagination=[page, total_pages])
     else:
         return redirect(url_for('login'))
@@ -405,31 +414,30 @@ def import_video():
                 if lat != "" and lon != "":
                     location = lat + ';' + lon
                 print('Saving')
-                with open(os.path.join(UPLOAD_DIRECTORY, filename), "wb") as fp:
+                with open(os.path.join(UPLOAD_DIRECTORY, filename), "wb"):
                     file.save(os.path.join(UPLOAD_DIRECTORY, filename))
                 thumbnail_path, id_video = insert_video_db(session['username'], file, filename, recTime, location,
                                                            request.form['title'])
                 msg = "File successfully uploaded: " + file.filename
                 return jsonify({'msg': msg, 'filenameimage': thumbnail_path,
-                                'linkVideo': request.base_url.replace('import_video', 'after_recording') + "/" + str(id_video)})
-                # Return 201 CREATED
-                # return redirect(url_for('myvideos'), 201)
+                                'linkVideo': request.base_url.replace('import_video', 'after_recording') + "/" + str(
+                                    id_video)})
         else:
             print('Redirecting')
             return redirect(url_for('import_video'))
     if 'username' in session:
-        return render_template('import_video.html', page='importvideo', name=get_user_data(session['username']),
+        return render_template('import_video.html', page='importvideo', name=get_user_data(),
                                browser=request.user_agent.browser)
     else:
         return redirect(url_for('login'))
 
 
-def allowed_file(filename):
+def allowed_file(filename: str) -> bool:
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def insert_video_db(user, file, path, rec_time, location, titulo=None):
+def insert_video_db(user: str, file, path: str, rec_time: str, location: str, titulo: str = None):
     if not titulo:
         titulo = secure_filename(file.filename)
     id_video = get_and_increment_current_video_id()
@@ -440,7 +448,8 @@ def insert_video_db(user, file, path, rec_time, location, titulo=None):
     return create_thumbnail(video_path, id_video), id_video
 
 
-def create_thumbnail(video_path, id_video):
+def create_thumbnail(video_path: str, id_video: int) -> str:
+    """ Call FFMPEG to create thumbnail and return its image path """
     filename = "th_" + str(id_video) + '.jpg'
     path = os.path.join(THUMBNAILS_DIRECTORY, filename)
     insert("INSERT INTO thumbnail VALUES (%s, %s)", [id_video, path])
@@ -450,21 +459,21 @@ def create_thumbnail(video_path, id_video):
     return path
 
 
-def get_and_increment_current_video_id():
+def get_and_increment_current_video_id() -> int:
     id_video = execute_one_query("SELECT idVideo FROM currentVideoID")[0]
     execute_one_query("UPDATE projeto.currentvideoid set idVideo=idVideo+1")
     return id_video
 
 
-def increment_current_annotation_id():
+def increment_current_annotation_id() -> None:
     execute_one_query("UPDATE projeto.currentannotationid set idAnnotation=idAnnotation+1")
 
 
-def get_current_annotation_id():
+def get_current_annotation_id() -> int:
     return execute_one_query("SELECT idAnnotation FROM currentAnnotationID")[0]
 
 
-def get_and_increment_current_sensor_data_id():
+def get_and_increment_current_sensor_data_id() -> int:
     id_sdata = execute_one_query("SELECT idData FROM currentSensorDataID")[0]
     execute_one_query("UPDATE projeto.currentsensordataid set idData=idData+1")
     return id_sdata
@@ -486,7 +495,7 @@ def after_recording(idVideo):
             if not os.path.exists(video[4]):
                 return make_response('Unavailable video', 400)
             path = str(video[4]).split("static/")[1]
-            return render_template('after_recording.html', page='pos_rec', name=get_user_data(session['username']),
+            return render_template('after_recording.html', page='pos_rec', name=get_user_data(),
                                    video=video, path=path)
         else:
             return make_response('Access forbidden', 403)
@@ -505,7 +514,7 @@ def receive_emotion(message):
     insert_emotion([message['type'], message['frameID'], session['idVideo'], message['duration']])
 
 
-def insert_emotion(emotion_details):
+def insert_emotion(emotion_details) -> None:
     insert(
         "INSERT INTO videoAnnotation(emotionType, iniTime, idVideo, customText, duration) VALUES (%s, %s, %s, %s, %s)",
         [emotion_details[0], emotion_details[1], emotion_details[2], None, emotion_details[3]])
@@ -592,15 +601,18 @@ def leave_recording():
 # Handler for a message received over 'deepface_start' channel
 @socketio.on('deepface_start')
 def call_deepface():
+    """ Start a new Deepface analysis thread """
     if 'idVideo' in session and 'username' in session:
         id_vid = session['idVideo']
         user = session['username']
-        df = DeepFaceClassifier(id_vid, str(np.asarray(execute_one_query("SELECT pathName FROM video WHERE username=%s AND idVideo=%s",
-                    [user, id_vid]))[0]), insert_emotion, socketio)
+        df = DeepFaceClassifier(id_vid, str(
+            np.asarray(execute_one_query("SELECT pathName FROM video WHERE username=%s AND idVideo=%s",
+                                         [user, id_vid]))[0]), insert_emotion, socketio)
         df.start()
 
 
-def generate_json_range(id_video):
+def generate_json_range(id_video: int):
+    """ Generate and save the JSON annotations file """
     filename = "vid_an" + str(id_video)
 
     annotations = np.asarray(
