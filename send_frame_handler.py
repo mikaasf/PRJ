@@ -208,11 +208,11 @@ class SendFrame(threading.Thread):
         self.__socket.close()
         self.__rec_output.release()
 
-    def close_socket(self):
+    def close_socket(self) -> None:
         print('vou fechar')
         self.__end_connection = True
 
-    def start_recording(self):
+    def start_recording(self) -> None:
         self.__start_time = time()
         self.__is_recording = True
 
