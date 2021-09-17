@@ -22,13 +22,13 @@ class FrameSegment(object):
         self.__addr: str = addr
             
     def send_frame(self, img: np.ndarray, audio: list):
+        
         # Calculate JSON payload structure size
         json_payload_size: int = len(json.dumps([1, None, 1, None]))
         half_payload_size: int = (MAX_STREAM_DGRAM + json_payload_size) // 2
         
-        # Convert bytes object to base64 object
+        # Convert binary to text
         encoded_audio: str = base64.b64encode(b''.join(audio)).decode('utf-8')
-        # compress_img: bytes = cv2.imencode('.jpg', cv2.cvtColor(img, cv2.COLOR_BGR2RGB))[1].tobytes()
         compress_img: bytes = cv2.imencode('.jpg', img)[1].tobytes()
         frame: str = base64.b64encode(compress_img).decode('utf-8')
 

@@ -32,9 +32,7 @@ class Camera (threading.Thread):
         self.__isDebug: bool = is_debug
 
     def run(self) -> None:
-        print("Start of camera thread")
         self.read_from_camera()
-        print("End of camera thread")
 
     def read_from_camera(self) -> None:
 
@@ -70,8 +68,7 @@ class Camera (threading.Thread):
 
                 key: int = cv2.waitKey(1)
 
-                if key == 27:       # Esc
-                    print("Releasing camera...")
+                if key == 27:   # Esc
                     cv2.destroyAllWindows()
 
                     # Stop streaming
@@ -99,8 +96,7 @@ class Camera (threading.Thread):
 
                 key: int = cv2.waitKey(1)
 
-                if key == 27:       # Esc
-                    print("Releasing camera...")
+                if key == 27:   # Esc
                     cv2.destroyAllWindows()
 
                     # Stop streaming
