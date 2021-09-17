@@ -372,27 +372,35 @@ def update_profile():
     return redirect(url_for('login'))
 
 
-@app.route('/myvideos', methods=['POST', 'GET'])
-def myvideos():
+@app.route('/myvideos', methods=['POST', 'GET'], defaults={'page': 1})
+@app.route('/myvideos?page=<int:page>')
+def myvideos(page):
     if request.method == 'POST':
         return redirect(url_for('home'))
     if 'username' in session:
+        perpage = 12
+        total_pages = int(np.ceil(np.asarray(execute_one_query("select count(*) from video"))[0] / perpage))
+        startat = (page - 1) * perpage
+
+        query = "SELECT title, uploadDate, idVideo FROM video WHERE username=%s ORDER BY uploadDate DESC LIMIT " + str(
+            startat) + ", " + str(perpage)
         videos = np.asarray(
-            execute_one_query("SELECT title, uploadDate, idVideo FROM video WHERE username=%s ORDER BY uploadDate DESC",
+            execute_one_query(query,
                               session['username'], True))
 
-        videos = np.hstack((videos, np.zeros((videos.shape[0], 1))))
+        if len(videos) > 0:
+            videos = np.hstack((videos, np.zeros((videos.shape[0], 1))))
 
-        for v in videos:
-            v[0] = urllib.parse.unquote(v[0])
-            thumbnail = execute_one_query("SELECT imagePath FROM thumbnail WHERE idVideo=%s", v[2])
-            if not thumbnail:
-                v[3] = os.path.join(app.config['UPLOAD_FOLDER'], "thumbnails", "default-thumbnail.png")
-            else:
-                v[3] = np.asarray(thumbnail)[0]
+            for v in videos:
+                v[0] = urllib.parse.unquote(v[0])
+                thumbnail = execute_one_query("SELECT imagePath FROM thumbnail WHERE idVideo=%s", v[2])
+                if not thumbnail or not os.path.isfile(str(np.asarray(thumbnail)[0])):
+                    v[3] = os.path.join(THUMBNAILS_DIRECTORY, "default-thumbnail.png")
+                else:
+                    v[3] = np.asarray(thumbnail)[0]
 
-        return render_template('myvideos.html', page='myvideos', name=get_user_data(session['username']),
-                               videos=tuple(videos))
+        return render_template('myvideos.html', page='myvideos', name=get_user_data(),
+                               videos=tuple(videos), pagination=[page, total_pages])
     else:
         return redirect(url_for('login'))
 

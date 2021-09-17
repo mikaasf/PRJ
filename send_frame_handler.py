@@ -10,7 +10,7 @@ import socket
 import subprocess
 import wave
 from flask_socketio import SocketIO, emit
-from time import time
+from time import time, strftime, localtime
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
@@ -159,6 +159,8 @@ class SendFrame(threading.Thread):
             elapsed_time = self.__finish_time - self.__start_time
             recorded_fps = self.__frame_counts / elapsed_time
             
+            final_output_filename: str = strftime("%Y-%m-%d_%H:%M:%S", localtime(self.__start_time))
+            
             # Remux recorded video
             if abs(recorded_fps - 25) >= .01:
                 cmd = FFMPEG_LOCATION + " -r " + \
@@ -168,14 +170,14 @@ class SendFrame(threading.Thread):
 
                 cmd = FFMPEG_LOCATION + " -ac 2 -channel_layout stereo -i " + self.__temp_path + \
                     WAV_OUTPUT_FILENAME + " -i " + self.__temp_path + "unknown.mkv -pix_fmt yuv420p " + \
-                    self.__videos_path + "unknown.mp4 -loglevel quiet"
+                    self.__videos_path + final_output_filename + ".mp4 -loglevel quiet"
                 subprocess.call(cmd, shell=True)
 
             # Mux recorded video
             else:
                 cmd = FFMPEG_LOCATION + " -ac 2 -channel_layout stereo -i " + self.__temp_path + \
                     WAV_OUTPUT_FILENAME + " -i " + self.__temp_path + \
-                    "teste.mkv -pix_fmt yuv420p " + self.__videos_path + "unknown.mp4 -loglevel quiet"
+                    "teste.mkv -pix_fmt yuv420p " + self.__videos_path + final_output_filename + ".mp4 -loglevel quiet"
                 subprocess.call(cmd, shell=True)
         
         # Close socket and end thread lifecycle
