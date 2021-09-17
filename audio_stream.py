@@ -1,7 +1,6 @@
 import pyaudio
 import wave
 import threading
-import time
 
 
 class AudioRecorder():
@@ -67,19 +66,3 @@ class AudioRecorder():
         
     def read_buffer(self):
         return self.__curr_audio_frames
-        
-
-
-if __name__ == '__main__':
-    
-    audio_thread = AudioRecorder()
-    audio_thread.start()
-    
-    start = time.time()
-    print("Started")
-    
-    while time.time() < start + 10:
-        continue
-        
-    print("Ended")
-    audio_thread.stop()

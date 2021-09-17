@@ -1,11 +1,11 @@
-import numpy as np
 import cv2
-import threading
+import numpy as np
 import pyrealsense2 as rs
 import socket
+import threading
+from audio_stream import AudioRecorder
 from copy import deepcopy
 from frame_segment import FrameSegment
-from audio_stream import AudioRecorder
 
 
 class Camera (threading.Thread):
@@ -44,7 +44,7 @@ class Camera (threading.Thread):
         except:
             self.__is_realsense_on = False
             self.__cam = cv2.VideoCapture(self.__cam_device, cv2.CAP_DSHOW)
-            print('Could not detect realsense. Activating camera device')
+            print('Could not detect realsense. Activating default camera device')
             
         
         if self.__is_realsense_on:
@@ -58,9 +58,10 @@ class Camera (threading.Thread):
 
                     # Convert images to numpy arrays
                     color_image: np.ndarray = np.asanyarray(color_frame.get_data())
-
-                    self.__fs.send_frame(color_image)
-                    print('Nao estou a registar audio!!!!')
+                    
+                    audio_buffer: list = deepcopy(self.__audio_recorder.read_buffer())
+                    self.__audio_recorder.clear_buffer()
+                    self.__fs.send_frame(color_image, audio_buffer)
 
                     # Show images
                     if self.__isDebug:
@@ -110,9 +111,6 @@ class Camera (threading.Thread):
 
 if __name__ == '__main__':
     cam = Camera(is_debug=True)
-    # cam = Camera()
 
     cam.start()
     cam.join()
-
-    print("Exiting Main Thread")
