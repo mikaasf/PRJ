@@ -302,16 +302,16 @@ def home():
         else:
             location = ""
         video_file = None
-        generate_json_range(session['idVideo'])
-        insert_video_db(session['username'], video_file, video_file.filename, recTime, location, vid_title)
+        # generate_json_range(session['idVideo'])
+        # insert_video_db(session['username'], video_file, video_file.filename, recTime, location, vid_title)
         return redirect(url_for('after_recording', idVideo=session['idVideo']))
     if 'username' in session:
         if not com_socket_handler:
-            com_socket_handler = SendFrame()
+            com_socket_handler = SendFrame(socketio)
             com_socket_handler.start()
-        session['idVideo'] = get_and_increment_current_video_id()
+        # session['idVideo'] = get_and_increment_current_video_id()
         return render_template("page.html", page='on_rec',
-                               name=get_user_data())  # , img_test=_convert_image_to_jpeg(cv2.resize(img, (640, 480))))
+                               name=get_user_data())
 
     return redirect(url_for('login'))
 
@@ -595,7 +595,7 @@ def leave_recording():
     global com_socket_handler
     print("left Recording")
     # session.pop('idVideo', None)
-    # com_socket_handler.close_socket()
+    com_socket_handler.close_socket()
 
 
 # Handler for a message received over 'deepface_start' channel

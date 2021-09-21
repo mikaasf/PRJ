@@ -16,13 +16,14 @@ CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100
-WAV_OUTPUT_FILENAME = "temp.wav"
+TEMP_WAV_OUTPUT_FILENAME = "temp.wav"
+TEMP_VID_OUTPUT_FILENAME = "temp.mkv"
+REMUX_TEMP_VID_OUTPUT_FILENAME = "re_temp.mkv"
 MAX_DGRAM: int = 2 ** 16
 FFMPEG_LOCATION: str
 
 if platform.system() == "Windows":
     FFMPEG_LOCATION = "C://ffmpeg//bin//ffmpeg"
-
 elif platform.system() == "Darwin":
     FFMPEG_LOCATION = "Mac...."
     
@@ -56,7 +57,7 @@ class SendFrame(threading.Thread):
 
         # OpenCV objects to record the received frames
         self.__rec_output: cv2.VideoWriter = cv2.VideoWriter(
-            self.__temp_path + 'temp.mkv', self.__fourcc, 25, (640, 480))
+            self.__temp_path + TEMP_VID_OUTPUT_FILENAME, self.__fourcc, 25, (640, 480))
 
         # Bool to control the thread lifetime
         self.__end_connection: bool = False
@@ -135,17 +136,14 @@ class SendFrame(threading.Thread):
             self.__finish_time = time()
             
             # Delete temporary files
-            if os.path.exists(self.__temp_path + "unknown.mkv"):
-                os.remove(self.__temp_path + "unknown.mkv")
+            if os.path.exists(self.__temp_path + REMUX_TEMP_VID_OUTPUT_FILENAME):
+                os.remove(self.__temp_path + REMUX_TEMP_VID_OUTPUT_FILENAME)
 
-            if os.path.exists(self.__temp_path + WAV_OUTPUT_FILENAME):
-                os.remove(self.__temp_path + WAV_OUTPUT_FILENAME)
-
-            if os.path.exists(self.__videos_path + "unknown.mp4"):
-                os.remove(self.__videos_path + "unknown.mp4")
+            if os.path.exists(self.__temp_path + TEMP_WAV_OUTPUT_FILENAME):
+                os.remove(self.__temp_path + TEMP_WAV_OUTPUT_FILENAME)
 
             # Inicialize audio recorder
-            wf = wave.open(self.__temp_path + WAV_OUTPUT_FILENAME, 'wb')
+            wf = wave.open(self.__temp_path + TEMP_WAV_OUTPUT_FILENAME, 'wb')
             wf.setnchannels(CHANNELS)
             wf.setsampwidth(self.__p.get_sample_size(FORMAT))
             wf.setframerate(RATE)
@@ -165,19 +163,22 @@ class SendFrame(threading.Thread):
             if abs(recorded_fps - 25) >= .01:
                 cmd = FFMPEG_LOCATION + " -r " + \
                     str(recorded_fps) + " -i " + self.__temp_path + \
-                    "temp.mkv -pix_fmt yuv420p -r 25 " + self.__temp_path + "unknown.mkv -loglevel quiet"
+                    TEMP_VID_OUTPUT_FILENAME + " -pix_fmt yuv420p -r 25 " + self.__temp_path + \
+                    REMUX_TEMP_VID_OUTPUT_FILENAME + " -loglevel quiet"
                 subprocess.call(cmd, shell=True)
 
                 cmd = FFMPEG_LOCATION + " -ac 2 -channel_layout stereo -i " + self.__temp_path + \
-                    WAV_OUTPUT_FILENAME + " -i " + self.__temp_path + "unknown.mkv -pix_fmt yuv420p " + \
+                    TEMP_WAV_OUTPUT_FILENAME + " -i " + self.__temp_path + \
+                    REMUX_TEMP_VID_OUTPUT_FILENAME + " -pix_fmt yuv420p " + \
                     self.__videos_path + final_output_filename + ".mp4 -loglevel quiet"
                 subprocess.call(cmd, shell=True)
 
             # Mux recorded video
             else:
                 cmd = FFMPEG_LOCATION + " -ac 2 -channel_layout stereo -i " + self.__temp_path + \
-                    WAV_OUTPUT_FILENAME + " -i " + self.__temp_path + \
-                    "teste.mkv -pix_fmt yuv420p " + self.__videos_path + final_output_filename + ".mp4 -loglevel quiet"
+                    TEMP_WAV_OUTPUT_FILENAME + " -i " + self.__temp_path + \
+                    TEMP_VID_OUTPUT_FILENAME + " -pix_fmt yuv420p " + \
+                    self.__videos_path + final_output_filename + ".mp4 -loglevel quiet"
                 subprocess.call(cmd, shell=True)
         
         # Close socket and end thread lifecycle
