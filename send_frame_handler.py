@@ -25,13 +25,13 @@ FFMPEG_LOCATION: str
 if platform.system() == "Windows":
     FFMPEG_LOCATION = "C://ffmpeg//bin//ffmpeg"
 elif platform.system() == "Darwin":
-    FFMPEG_LOCATION = "Mac...."
+    FFMPEG_LOCATION = "/usr/local/bin/ffmpeg"
     
 
 
 class SendFrame(threading.Thread):
 
-    def __init__(self, server_socket: SocketIO):
+    def __init__(self, server_socket: SocketIO, id_video: str):
         threading.Thread.__init__(self)
 
         # IP port ID
@@ -46,8 +46,8 @@ class SendFrame(threading.Thread):
         self.__socket.bind(self.__con)
 
         # filenames and paths
-        self.__videos_path: str = "static/videos/"
-        self.__temp_path: str = "static/temp/"
+        self.__videos_path: str = os.path.join("static", "videos")
+        self.__temp_path: str = os.path.join("static", "temp")
 
         # PyAudio object
         self.__p = pyaudio.PyAudio()
@@ -72,7 +72,11 @@ class SendFrame(threading.Thread):
 
         # Buffer to record audio
         self.__audio_frames: list = []
-
+            
+        # Id video for video path
+        self.__id_video: str = id_video
+            
+            
     def send_data(self):
         
         # Variables to store data
@@ -157,7 +161,7 @@ class SendFrame(threading.Thread):
             elapsed_time = self.__finish_time - self.__start_time
             recorded_fps = self.__frame_counts / elapsed_time
             
-            final_output_filename: str = strftime("%Y-%m-%d_%H:%M:%S", localtime(self.__start_time))
+            final_output_filename: str = "video_" + self.__id_video
             
             # Remux recorded video
             if abs(recorded_fps - 25) >= .01:
