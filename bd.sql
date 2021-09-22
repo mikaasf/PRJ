@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS video (
 CREATE TABLE IF NOT EXISTS thumbnail (
     idVideo int PRIMARY KEY,
     imagePath VARCHAR(150) NOT NULL,
-	CONSTRAINT fk_video FOREIGN KEY (idVideo)
+	CONSTRAINT fk_frame FOREIGN KEY (idVideo)
         REFERENCES video (idVideo) ON DELETE CASCADE
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
 
