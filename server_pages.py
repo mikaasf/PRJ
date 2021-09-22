@@ -18,9 +18,13 @@ import urllib
 import json
 from real_time_deepface import DeepFaceClassifier
 
+TEMP_DIRECTORY = os.path.join(".", "static", "temp")  # "./static/temp"
 UPLOAD_DIRECTORY = os.path.join(".", "static", "videos")  # "./static/videos"
 JSON_DIRECTORY = os.path.join(UPLOAD_DIRECTORY, "json")  # UPLOAD_DIRECTORY + "/json"
 THUMBNAILS_DIRECTORY = os.path.join(UPLOAD_DIRECTORY, "thumbnails")  # UPLOAD_DIRECTORY + "/thumbnails"
+
+if not os.path.exists(TEMP_DIRECTORY):
+    os.makedirs(TEMP_DIRECTORY)
 
 if not os.path.exists(UPLOAD_DIRECTORY):
     os.makedirs(UPLOAD_DIRECTORY)
@@ -501,7 +505,8 @@ def after_recording(idVideo):
             return make_response('Access forbidden', 403)
     else:
         return redirect(url_for('login'))
-
+    
+    
 
 # ==================================
 # ==== WEBSOCKET CONNECTIONS ====
@@ -624,7 +629,7 @@ def generate_json_range(id_video: int):
         execute_one_query(
             "SELECT dataType, valueData, iniTime, duration FROM sensorData WHERE idVideo = %s", id_video, True))
 
-    # print(signals)
+    print(signals)
 
     all_annotations = np.asarray(
         execute_one_query("SELECT emotionType, emotion FROM annotation", fetchall=True))
