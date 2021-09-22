@@ -298,25 +298,23 @@ def home():
             vid_title = request.form['vid_title']
         else:
             vid_title = "Untitled"
-        # todo fetch & store extra parameters according to recorded video
         print("title", vid_title)
         recTime = time.strftime("%Y-%m-%d %H:%M:%S")
         if 'loc' in request.form:
             location = request.form['loc']
         else:
             location = ""
-        video_file = None
-        # generate_json_range(session['idVideo'])
-        # insert_video_db(session['username'], video_file, video_file.filename, recTime, location, vid_title)
+        id_video = session['idVideo']
+        generate_json_range(id_video)
+        insert_video_db(session['username'], None, "video_" + id_video, recTime, location, vid_title, session['idVideo'])
         return redirect(url_for('after_recording', idVideo=session['idVideo']))
     if 'username' in session:
         if not com_socket_handler:
-            com_socket_handler = SendFrame(socketio)
+            session['idVideo'] = get_and_increment_current_video_id()
+            com_socket_handler = SendFrame(socketio, session['idVideo'])
             com_socket_handler.start()
-        # session['idVideo'] = get_and_increment_current_video_id()
         return render_template("page.html", page='on_rec',
                                name=get_user_data())
-
     return redirect(url_for('login'))
 
 
@@ -441,10 +439,11 @@ def allowed_file(filename: str) -> bool:
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def insert_video_db(user: str, file, path: str, rec_time: str, location: str, titulo: str = None):
-    if not titulo:
+def insert_video_db(user: str, file, path: str, rec_time: str, location: str, titulo: str = None, id_video: int = None):
+    if not titulo and file:
         titulo = secure_filename(file.filename)
-    id_video = get_and_increment_current_video_id()
+    if not id_video:
+        id_video = get_and_increment_current_video_id()
     video_path = os.path.join(UPLOAD_DIRECTORY, path)
     insert("INSERT INTO video values (%s, %s, %s, %s, %s, %s, %s)",
            [id_video, datetime.today().strftime('%Y-%m-%d %H:%M:%S'), titulo, user,
@@ -505,8 +504,7 @@ def after_recording(idVideo):
             return make_response('Access forbidden', 403)
     else:
         return redirect(url_for('login'))
-    
-    
+
 
 # ==================================
 # ==== WEBSOCKET CONNECTIONS ====
@@ -518,6 +516,13 @@ def receive_emotion(message):
     print("clicked", message['type'])
     insert_emotion([message['type'], message['frameID'], session['idVideo'], message['duration']])
 
+
+def insert_emotion(emotion_details) -> None:
+    insert(
+        "INSERT INTO videoAnnotation(emotionType, iniTime, idVideo, customText, duration) VALUES (%s, %s, %s, %s, %s)",
+        [emotion_details[0], emotion_details[1], emotion_details[2], None, emotion_details[3]])
+    increment_current_annotation_id()
+    id_request_reply()
 
 def insert_emotion(emotion_details) -> None:
     insert(
@@ -600,7 +605,7 @@ def leave_recording():
     global com_socket_handler
     print("left Recording")
     # session.pop('idVideo', None)
-    com_socket_handler.close_socket()
+    # com_socket_handler.close_socket()
 
 
 # Handler for a message received over 'deepface_start' channel
@@ -628,8 +633,6 @@ def generate_json_range(id_video: int):
     signals = np.asarray(
         execute_one_query(
             "SELECT dataType, valueData, iniTime, duration FROM sensorData WHERE idVideo = %s", id_video, True))
-
-    print(signals)
 
     all_annotations = np.asarray(
         execute_one_query("SELECT emotionType, emotion FROM annotation", fetchall=True))
