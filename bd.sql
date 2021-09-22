@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS person (
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS video (
-	idVideo bigint primary key auto_increment,
+	idVideo int primary key auto_increment,
     uploadDate DATETIME NOT NULL,
     title VARCHAR(70) NOT NULL,
     username VARCHAR(20) NOT NULL,
@@ -27,14 +27,14 @@ CREATE TABLE IF NOT EXISTS video (
 CREATE TABLE IF NOT EXISTS thumbnail (
     idVideo int PRIMARY KEY,
     imagePath VARCHAR(150) NOT NULL,
-	CONSTRAINT fk_frame FOREIGN KEY (idVideo)
+    CONSTRAINT fk_frame FOREIGN KEY (idVideo)
         REFERENCES video (idVideo) ON DELETE CASCADE
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS annotation (
     emotionType VARCHAR(50) primary key,
-    emotion boolean not null,
-    icon MEDIUMBLOB
+    icon MEDIUMBLOB,
+    emotion boolean not null
 ) ENGINE=InnoDB default CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS videoAnnotation (
@@ -91,4 +91,3 @@ INSERT INTO annotation VALUES ("surprised", Null, 1);
 INSERT INTO annotation VALUES ("disgusted", Null, 1);
 INSERT INTO annotation VALUES ("custom", Null, 2);
 INSERT INTO annotation VALUES ("other", Null, 3);
-
