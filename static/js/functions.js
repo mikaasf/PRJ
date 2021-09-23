@@ -20,13 +20,54 @@ function startRecording() {
         return;
     }
 
+    document.getElementById("timer").style.display = "inline";
+    start();
+
     isRecording = true;
     startingTime = new Date().getTime() / 1000;
     let rec_light = document.getElementById("rec");
-    rec_light.classList.toggle("Rec");
     let rec_button = document.getElementById("changeRec");
+    rec_light.classList.toggle("Rec");
     rec_button.classList.toggle("btn-danger");
+    rec_button.classList.toggle("stop");
     document.getElementById("changeRec").innerHTML = "Stop & save recording";
+}
+
+function timeToString(time) {
+    let diffInHours = time / 3600000;
+    let hh = Math.floor(diffInHours);
+
+    let diffInMin = (diffInHours - hh) * 60;
+    let mm = Math.floor(diffInMin);
+
+    let diffInSec = (diffInMin - mm) * 60;
+    let ss = Math.floor(diffInSec);
+
+    let formattedHH = hh.toString().padStart(2, "0");
+    let formattedMM = mm.toString().padStart(2, "0");
+    let formattedSS = ss.toString().padStart(2, "0");
+
+    return `${formattedHH}:${formattedMM}:${formattedSS}`;
+}
+
+let startTime;
+let elapsedTime = 0;
+let timerInterval;
+
+function print(txt) {
+    document.getElementById("timer").innerHTML = txt;
+}
+
+function start() {
+    startTime = Date.now() - elapsedTime;
+    timerInterval = setInterval(function printTime() {
+      elapsedTime = Date.now() - startTime;
+      print(timeToString(elapsedTime));
+    }, 10);
+}
+
+function camOff(videoElem) {
+    videoElem.src = "static/imgs/no_cam.jpg";
 }
 
 // annotations.html
@@ -47,13 +88,14 @@ function toggleButton(element) {
             counter = emotionTimer;
             emotionTimer = temp;
         }
+        let duration = counter - emotionTimer;
         socket.emit('emotionButton', {
             type: $(element).attr('id'),
             frameID: emotionTimer,
-            duration: counter - emotionTimer
+            duration: duration
         });
         console.log(newID);
-        addAnnotationToList([element.id, {'id': newID}, emotionTimer, counter], true);
+        addAnnotationToList([element.id, {'id': newID}, emotionTimer, duration], true);
     } else {
         for (let i = 0; i < emotionButtons.length; i++) {
             if (emotionButtons.item(i) !== element)
