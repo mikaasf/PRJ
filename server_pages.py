@@ -1,22 +1,22 @@
-import re
-import secrets
-import time
-from urllib.parse import urlparse, urljoin
-import os
 import cv2
 import flask
+import json
 import numpy as np
+import os
+import re
+import secrets
+import subprocess
+import time
+import urllib
+from datetime import datetime
+from deepface_vid_processing import DeepFaceClassifier
 from flask import Flask, render_template, request, redirect, url_for, make_response, session, Response, jsonify
 from flaskext.mysql import MySQL
-from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
-import subprocess
-from werkzeug.utils import secure_filename
 from send_frame_handler import SendFrame
-from datetime import datetime
-import urllib
-import json
-from real_time_deepface import DeepFaceClassifier
+from urllib.parse import urlparse, urljoin
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 TEMP_DIRECTORY = os.path.join(".", "static", "temp")  # "./static/temp"
 UPLOAD_DIRECTORY = os.path.join(".", "static", "videos")  # "./static/videos"
