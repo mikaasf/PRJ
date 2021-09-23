@@ -52,7 +52,7 @@
 </section>
 <footer>
     <br/>
-    <div class="pagination float-right">
+    <div class="pagination float-right" style="margin-right: 3vh">
         {% if pagination[0] > 1 %}
         <a href="{{ url_for(request.endpoint, page=pagination[0] - 1) }}">&laquo;</a>
         {% endif %}

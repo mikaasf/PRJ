@@ -11,13 +11,11 @@
     let emotionTimer = 0;
 
          $(document).ready(function() {
-
            // sending a connect request to the server.
            socket = io();
            socket.on('connect', function (){
              socket.emit('my event', {data:"I'm connected"});
            });
-
 
 
            // An event handler for a change of value
@@ -83,76 +81,9 @@
 <script type="text/javascript">
   let startingTime;
 
-  function startRecording() {
-    if (document.getElementById("changeRec").innerHTML === "Stop &amp; save recording") {
-
-      let form = document.createElement("form");
-      form.setAttribute("method", "post");
-      let container = document.getElementById("video_controls");
-      let elements = [container.childElementCount];
-      let j = 0;
-
-      while (container.hasChildNodes()) {
-        elements[j] = container.removeChild(container.lastChild);
-        j++;
-      }
-
-      for (let i = 0; i < elements.length; i++) {
-        form.appendChild(elements[i]);
-        console.log(elements[i]);
-      }
-      document.getElementById("video_controls").appendChild(form);
-
-      return;
-    }
-
-    document.getElementById("timer").style.display = "inline";
-    start();
-
-    let rec_light = document.getElementById("rec");
-    let rec_button = document.getElementById("changeRec");
-    rec_light.classList.toggle("Rec");
-    rec_button.classList.toggle("btn-danger");
-    rec_button.classList.toggle("stop");
-    document.getElementById("changeRec").innerHTML = "Stop & save recording";
-  }
-
-  function timeToString(time) {
-    let diffInHours = time / 3600000;
-    let hh = Math.floor(diffInHours);
-
-    let diffInMin = (diffInHours - hh) * 60;
-    let mm = Math.floor(diffInMin);
-
-    let diffInSec = (diffInMin - mm) * 60;
-    let ss = Math.floor(diffInSec);
-
-    let formattedHH = hh.toString().padStart(2, "0");
-    let formattedMM = mm.toString().padStart(2, "0");
-    let formattedSS = ss.toString().padStart(2, "0");
-
-    return `${formattedHH}:${formattedMM}:${formattedSS}`;
-  }
-
   let startTime;
   let elapsedTime = 0;
   let timerInterval;
-
-  function print(txt) {
-    document.getElementById("timer").innerHTML = txt;
-  }
-
-  function start() {
-    startTime = Date.now() - elapsedTime;
-    timerInterval = setInterval(function printTime() {
-      elapsedTime = Date.now() - startTime;
-      print(timeToString(elapsedTime));
-    }, 10);
-  }
-
-  function camOff(videoElem) {
-    videoElem.src = "static/imgs/no_cam.jpg";
-  }
 
 </script>
 {% endblock %}
