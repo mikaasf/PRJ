@@ -9,8 +9,8 @@ import threading
 import socket
 import subprocess
 import wave
-from flask_socketio import SocketIO, emit
-from time import time, strftime, localtime
+from flask_socketio import SocketIO
+from time import time
 
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
@@ -26,7 +26,6 @@ if platform.system() == "Windows":
     FFMPEG_LOCATION = "C://ffmpeg//bin//ffmpeg"
 elif platform.system() == "Darwin":
     FFMPEG_LOCATION = "/usr/local/bin/ffmpeg"
-    
 
 
 class SendFrame(threading.Thread):
@@ -57,7 +56,7 @@ class SendFrame(threading.Thread):
 
         # OpenCV objects to record the received frames
         self.__rec_output: cv2.VideoWriter = cv2.VideoWriter(
-            self.__temp_path + TEMP_VID_OUTPUT_FILENAME, self.__fourcc, 25, (640, 480))
+            os.path.join(self.__temp_path, TEMP_VID_OUTPUT_FILENAME), self.__fourcc, 25, (640, 480))
 
         # Bool to control the thread lifetime
         self.__end_connection: bool = False
@@ -72,19 +71,18 @@ class SendFrame(threading.Thread):
 
         # Buffer to record audio
         self.__audio_frames: list = []
-            
+
         # Id video for video path
         self.__id_video: str = id_video
-            
-            
+
     def send_data(self):
-        
+
         # Variables to store data
         video: str = ""
         audio: str = ""
 
         while not self.__end_connection:
-            
+
             # Receive and decode data
             seg: bytes
             seg, _ = self.__socket.recvfrom(MAX_DGRAM)
@@ -96,14 +94,14 @@ class SendFrame(threading.Thread):
                 audio += msg[3]
 
                 if len(video):
-                    
+
                     # Convert frame from text to binary
                     try:
                         frame_encoded: np.ndarray = np.frombuffer(
                             base64.b64decode(video.encode('utf-8')), dtype=np.uint8)
                         frame: np.ndarray = cv2.imdecode(
                             frame_encoded, cv2.IMREAD_UNCHANGED)
-                        
+
                         # Retransmit frame
                         self.__server_socket.emit('vid', {'video': video})
 
@@ -116,7 +114,7 @@ class SendFrame(threading.Thread):
                         print("Error parsing frame:", e)
 
                 if len(audio):
-                    
+
                     # Convert audio from text to binary
                     encoded_audio: str = base64.b64decode(
                         audio.encode('utf-8'))
@@ -124,7 +122,6 @@ class SendFrame(threading.Thread):
                     # Write audio into buffer
                     if self.__is_recording:
                         self.__audio_frames.append(encoded_audio)
-                        
 
                 video = ""
                 audio = ""
@@ -133,21 +130,20 @@ class SendFrame(threading.Thread):
                 video += msg[1]
                 audio += msg[3]
 
-
         if self.__is_recording:
-            
+
             # End of recording timestamp
             self.__finish_time = time()
-            
-            # Delete temporary files
-            if os.path.exists(self.__temp_path + REMUX_TEMP_VID_OUTPUT_FILENAME):
-                os.remove(self.__temp_path + REMUX_TEMP_VID_OUTPUT_FILENAME)
 
-            if os.path.exists(self.__temp_path + TEMP_WAV_OUTPUT_FILENAME):
-                os.remove(self.__temp_path + TEMP_WAV_OUTPUT_FILENAME)
+            # Delete temporary files
+            if os.path.exists(os.path.join(self.__temp_path, REMUX_TEMP_VID_OUTPUT_FILENAME)):
+                os.remove(os.path.join(self.__temp_path, REMUX_TEMP_VID_OUTPUT_FILENAME))
+
+            if os.path.exists(os.path.join(self.__temp_path, TEMP_WAV_OUTPUT_FILENAME)):
+                os.remove(os.path.join(self.__temp_path, TEMP_WAV_OUTPUT_FILENAME))
 
             # Inicialize audio recorder
-            wf = wave.open(self.__temp_path + TEMP_WAV_OUTPUT_FILENAME, 'wb')
+            wf = wave.open(os.path.join(self.__temp_path, TEMP_WAV_OUTPUT_FILENAME), 'wb')
             wf.setnchannels(CHANNELS)
             wf.setsampwidth(self.__p.get_sample_size(FORMAT))
             wf.setframerate(RATE)
@@ -160,31 +156,30 @@ class SendFrame(threading.Thread):
             # Calculate real framerate
             elapsed_time = self.__finish_time - self.__start_time
             recorded_fps = self.__frame_counts / elapsed_time
-            
+
             final_output_filename: str = "video_" + self.__id_video
-            
+
             # Remux recorded video
             if abs(recorded_fps - 25) >= .01:
                 cmd = FFMPEG_LOCATION + " -r " + \
-                    str(recorded_fps) + " -i " + self.__temp_path + \
-                    TEMP_VID_OUTPUT_FILENAME + " -pix_fmt yuv420p -r 25 " + self.__temp_path + \
-                    REMUX_TEMP_VID_OUTPUT_FILENAME + " -loglevel quiet"
+                      str(recorded_fps) + " -i " + os.path.join(self.__temp_path, TEMP_VID_OUTPUT_FILENAME) + \
+                      " -pix_fmt yuv420p -r 25 " + os.path.join(self.__temp_path, REMUX_TEMP_VID_OUTPUT_FILENAME) + \
+                      " -loglevel quiet"
                 subprocess.call(cmd, shell=True)
 
-                cmd = FFMPEG_LOCATION + " -ac 2 -channel_layout stereo -i " + self.__temp_path + \
-                    TEMP_WAV_OUTPUT_FILENAME + " -i " + self.__temp_path + \
-                    REMUX_TEMP_VID_OUTPUT_FILENAME + " -pix_fmt yuv420p " + \
-                    self.__videos_path + final_output_filename + ".mp4 -loglevel quiet"
+                cmd = FFMPEG_LOCATION + " -ac 2 -channel_layout stereo -i " + os.path.join(self.__temp_path, TEMP_WAV_OUTPUT_FILENAME) + \
+                      " -i " + os.path.join(self.__temp_path, REMUX_TEMP_VID_OUTPUT_FILENAME) + \
+                      " -pix_fmt yuv420p " + \
+                      os.path.join(self.__videos_path, final_output_filename) + ".mp4 -loglevel quiet"
                 subprocess.call(cmd, shell=True)
 
             # Mux recorded video
             else:
-                cmd = FFMPEG_LOCATION + " -ac 2 -channel_layout stereo -i " + self.__temp_path + \
-                    TEMP_WAV_OUTPUT_FILENAME + " -i " + self.__temp_path + \
-                    TEMP_VID_OUTPUT_FILENAME + " -pix_fmt yuv420p " + \
-                    self.__videos_path + final_output_filename + ".mp4 -loglevel quiet"
+                cmd = FFMPEG_LOCATION + " -ac 2 -channel_layout stereo -i " + os.path.join(self.__temp_path, TEMP_WAV_OUTPUT_FILENAME) + \
+                      " -i " + os.path.join(self.__temp_path, TEMP_VID_OUTPUT_FILENAME) + " -pix_fmt yuv420p " + \
+                      os.path.join(self.__videos_path, final_output_filename) + ".mp4 -loglevel quiet"
                 subprocess.call(cmd, shell=True)
-        
+
         # Close socket and end thread lifecycle
         self.__socket.close()
 
