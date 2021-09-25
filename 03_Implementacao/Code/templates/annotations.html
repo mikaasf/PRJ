@@ -1,0 +1,199 @@
+<section style="float: right;">
+    <p>
+    <h4>
+        🕒 <span id="date"> {% if video and video[3] %}
+              {{ video[3] }}
+        {% endif %}
+        {% if not video or not video[3] %}
+                -------
+        {% endif %} </span>
+    </h4>
+    <br/>
+    <h4>
+        🧭 <span id="place">
+        {% if not page == 'on_rec' %}
+        {% if video and video[2] %}
+              {{ video[2] }}
+        {% endif %}
+        {% if not video or not video[2] %}
+                -------
+        {% endif %}
+        {% endif %}
+        {% if page == 'on_rec' %}
+        <input type="text" name="loc" style="background: white">
+        {% endif %}
+    </span>
+    </h4>
+
+    </p>
+
+</section>
+</section>
+
+<aside class="mr-5" style="float: right; margin: 0 1.5%; width: 30%;">
+    <h4>Annotations</h4>
+    <br/>
+    &nbsp;
+        <table class="table d-sm-table-cell">
+<tbody>
+        <tr class="table-light">
+            <td>
+                <button title="Happy"><span role="button" id="happy" class="emoticons ann" onclick="toggleButton(this)"
+                              aria-pressed="false">🙂</span></button>
+            </td>
+            <td>
+                <button title="Sad"><span role="button" id="sad" class="emoticons ann" onclick="toggleButton(this)"
+                              aria-pressed="false">😔</span></button>
+            </td>
+            <td>
+                <button title="Surprised"><span role="button" id="surprised" class="emoticons ann" onclick="toggleButton(this)"
+                              aria-pressed="false">😯</span></button>
+            </td>
+        </tr>
+        <tr class="table-light col-3">
+            <td>
+                <button title="Afraid"><span role="button" id="afraid" class="emoticons ann" onclick="toggleButton(this)"
+                              aria-pressed="false">😨</span></button>
+            </td>
+            <td>
+                <button title="Angry"><span role="button" id="angry" class="emoticons ann" onclick="toggleButton(this)"
+                              aria-pressed="false">😡</span></button>
+            </td>
+            <td>
+                <button title="Disgusted"><span role="button" id="disgusted" class="emoticons ann" onclick="toggleButton(this)"
+                              aria-pressed="false">🤢</span></button>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <table class="table d-sm-table-cell">
+    {% if not page == 'on_rec' %}
+        <tbody>
+        <tr class="table-light">
+            <td>
+                <button id="deepface_generate" class="btn btn-default" title="Auto identify emotions"><span role="button" onclick="callDeepface()"
+                              aria-pressed="false">Auto identify emotions</span></button>
+            </td>
+            <td>
+                <img id="loaderImg" src="../static/imgs/loading.gif" style="display: none; width: 8vh;" alt="In progress">
+            </td>
+        </tr>
+        </tbody>
+        {% endif %}
+        <table class="table">
+            <tbody>
+            <tr>
+                <td>
+                    <div class="ribbon">
+                        <input id="custom" type="text" class="mx-auto ann" placeholder="Type here..."
+                               title="Type here your custom annotation, then press enter"
+                               style="-webkit-text-fill-color:blanchedalmond; background-color: royalblue; border: none;">
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </table>
+
+    <div class="box col-12" style="overflow: auto;
+    height: 45vh;">
+        <p class="text-danger" id="err_log"></p>
+        <table>
+            <ul id="annotations_list" class="list-group" style="list-style-type: none;">
+
+            </ul>
+        </table>
+    </div>
+    &nbsp;&nbsp;
+    <div>
+        <button id="saveChanges" class="btn btn-light" onclick="saveChanges()" disabled>Save changes</button>
+    </div>
+</aside>
+<div>
+</div>
+<script>
+
+    let socket;
+    let newID = 0;
+    let ids_time = {};
+
+    $(document).ready(function () {
+
+        // sending a connect request to the server.
+        socket = io();
+
+        socket.emit('ask for json');
+
+        socket.on('connect', function () {
+            socket.emit('my event', {data: "I'm connected"});
+            socket.emit('ask for id');
+        });
+
+        socket.on('newID', function (data) {
+            newID = data.id;
+            console.log(newID);
+        });
+
+        socket.on('saved', function () {
+            document.getElementById("saveChanges").disabled = true;
+            document.getElementById("err_log").innerHTML = "";
+        });
+
+        socket.on('deepface_complete', function () {
+            document.getElementById("loaderImg").src = "../static/imgs/done.gif"
+            saveChanges();
+            window.location.hash = 'r';
+            setTimeout(function () {
+                if(window.location.hash === '#r') {
+                    window.location.hash = '';
+                    window.location.reload(1);
+                }
+            }, 3000);  // After 3 secs
+        });
+
+    const videoElem = document.querySelector("#videoElement");
+    socket.on("vid", (msg) => {
+        videoElem.src = "data:image/jpg;base64," + msg.video;
+    });
+
+    window.onbeforeunload = function () {
+        socket.emit('leaveRecording');
+    }
+  });
+
+  function startRecording() {
+    if (document.getElementById("changeRec").innerHTML === "Stop &amp; save recording") {
+        isRecording = false;
+        let form = document.createElement("form");
+        form.setAttribute("method", "post");
+        let container = document.getElementById("video_controls");
+        let elements = [container.childElementCount];
+        let j = 0;
+        while (container.hasChildNodes()) {
+            elements[j] = (container.removeChild(container.lastChild));
+            j++;
+        }
+        for (let i = 0; i < elements.length; i++) {
+            form.appendChild(elements[i]);
+            console.log(elements[i]);
+        }
+        document.getElementById("video_controls").appendChild(form);
+        return;
+    }
+
+    recordTimer = new Date().getTime();
+    socket.emit("start_recording", {});
+
+    document.getElementById("timer").style.display = "inline";
+    start();
+
+    isRecording = true;
+    startingTime = new Date().getTime() / 1000;
+    let rec_light = document.getElementById("rec");
+    let rec_button = document.getElementById("changeRec");
+    rec_light.classList.toggle("Rec");
+    rec_button.classList.toggle("btn-danger");
+    rec_button.classList.toggle("stop");
+    document.getElementById("changeRec").innerHTML = "Stop & save recording";
+}
+</script>

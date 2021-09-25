@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>Video - Video Annotation</title>
+{% endblock %}
+
+
+{% block body %}
+
+<section>
+    <section style="float: left; margin: 0 1.5%; width: 63%;">
+        <h3 id="vid_title">
+            {% if video %}
+            {{ video[0] }}
+            {% endif %}
+            {% if not video %}
+            Video Title
+            {% endif %}
+
+            <button class="notRec rec-button" disabled></button>
+        </h3>
+
+        <video id="video_player" class="col-12" controls preload="auto" muted="true">
+            <source src="{{ url_for('static', filename=path) }}" type="video/mp4">
+            Your browser does not support the video tag :(
+
+        </video>
+        &nbsp; &nbsp;
+        <div>
+            <p><img src="../static/imgs/heartRate.png" style="width: 30px; height: 30px;" alt="Heart Rate (bpm) Icon">  <span id="heart_rate">--</span>  bpm
+                &nbsp;&nbsp;
+                <img src="../static/imgs/waterDrop.png" style="width: 30px; height: 30px;" alt="Drop (EDA) Icon">  <span id="sudo_rate">--</span>
+            </p>
+        </div>&nbsp;&nbsp;
+        {% include 'annotations.html' %}
+
+    </section>
+
+</section>
+
+<script type="text/javascript">
+    let vid = document.getElementById("video_player");
+    // current timestamp of the video
+    let counter = 0;
+    let noChanges = true;
+    let sensorData = [];
+    let s_alert = document.getElementById("sudo_rate");
+    let h_rate = document.getElementById("heart_rate");
+
+    vid.ontimeupdate = function () {
+        console.log("Time: " + vid.currentTime);
+        counter = vid.currentTime;
+        for (let key in ids_time) {
+            if(ids_time[key][0] < counter + 1 && ids_time[key][1] > counter) {
+                document.getElementById("ann_" + key).scrollIntoView();
+                break;
+            }
+        }
+        h_rate.innerHTML = "--";
+        s_alert.style.color = "";
+        s_alert.innerHTML = "Normal";
+        for (let key in sensorData) {
+            if(sensorData[key][2] < counter + 1 && +sensorData[key][2] + +sensorData[key][3] > counter) {
+                if(sensorData[key][0] === 'BPM')
+                    h_rate.innerHTML = sensorData[key][1];
+                if (sensorData[key][0] === 'EDA') {
+                    s_alert.style.color = "brown";
+                    s_alert.innerHTML = sensorData[key][1];
+                }
+            }
+        }
+    };
+    // timestamp when user clicked added an annotation
+    let emotionTimer = 0;
+
+    $(document).ready(function () {
+
+        socket.on('annotations_json', (data) => {
+            console.log(data.data);
+            let annotations = data.data['annotations'];
+            let emotions = annotations['emotions'];
+            sensorData = annotations['body_signals'];
+            let detected = emotions['detected'];
+            let manual = emotions['custom'];
+            if (manual !== undefined) {
+                for (let i = 0; i < manual.length; i++) {
+                    if (manual[i] !== undefined)
+                        addAnnotationToList(manual[i], false);
+                }
+            }
+            if (detected !== undefined) {
+                for (let i = 0; i < detected.length; i++) {
+                    if (detected[i] !== undefined)
+                        addAnnotationToList(detected[i], false);
+                }
+            }
+        });
+
+
+        // An event handler for a change of value
+        $('input.ann').on('keydown', function (event) {
+            if (event.key === 'Enter') {
+
+                socket.emit('customInput', {
+                    type: $(this).attr('id'),
+                    data: $(this).val(),
+                    frameID: counter
+                });
+                console.log("sent " + $(this).val());
+                addAnnotationToList([$(this).val(), {'id': newID}, counter, null], true);
+                document.querySelector("#custom").value = "";
+            }
+
+        });
+
+    });
+
+    window.onbeforeunload = function () {
+        socket.emit('leaveRecording');
+    }
+
+</script>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+
+{% block head %}
+
+<title>My Videos - Video Annotation</title>
+
+{% endblock %}
+
+
+{% block body %}
+{% if not videos and pagination[0] < 2 %}
+<br/>
+<div class="d-flex flex-row-reverse">
+    <div class="p-2" style="width: 145px"></div>
+    <div class="p-2"><img src="../static/imgs/arrowup.png" style="width: 70px; height: 60px" alt="No videos yet"></div>
+    <div class="p-2" style="width: 30vh"></div>
+    <div class="p-2"><h4>Seems that you don't have any videos yet... Click on the plus sign to record your first!</h4>
+    </div>
+</div>
+
+{% endif %}
+<section class="col-9 mx-auto">
+    <div class="card-deck" style="min-height: 250px;">
+
+        {% set count = [] %}
+        {% for v in videos %}
+        {% if count|length % 3 == 0 %}
+        <div class="row mx-auto m-3">
+            {% endif %}
+            <div class="card p-3">
+                <a href="{{ url_for('after_recording', idVideo=v[2]) }}">
+
+                    <img class="card-img-top" src="{{ v[3] }}" alt="Card image cap" id="card_img_1">
+                    <div class="card-body">
+                        <h5 class="card-title" id="title">{{ v[0] }}</h5>
+                    </div>
+                    <div class="card-footer">
+                        <small class="text-muted">Last updated in <span id="time">{{ v[1] }}</span></small>
+                    </div>
+                </a>
+            </div>
+            </a>
+            {% if count|length % 3 == 2 %}
+        </div>
+
+        {% endif %}
+
+        {% set _ = count.append(1) %}
+        {% endfor %}
+    </div>
+</section>
+<footer>
+    <br/>
+    <div class="pagination float-right" style="margin-right: 3vh">
+        {% if pagination[0] > 1 %}
+        <a href="{{ url_for(request.endpoint, page=pagination[0] - 1) }}">&laquo;</a>
+        {% endif %}
+        {% for i in range(1, pagination[1] + 1) %}
+        <a href="{{ url_for(request.endpoint, page=i) }}"
+           {% if i== pagination[0] %}
+           class="active"
+           {% endif %}
+        >{% print i %}</a>
+        {% endfor %}
+        {% if pagination[0] < pagination[1] %}
+        <a href="{{ url_for(request.endpoint, page=pagination[0] + 1) }}">&raquo;</a>
+        {% endif %}
+    </div>
+</footer>
+{% endblock %}

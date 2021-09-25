@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block head %}
+
+<title>Update Profile - Video Annotation</title>
+
+{% endblock %}
+
+
+{% block body %}
+<div class="py-3 px-3">
+<h3>Update your profile</h3>
+</div>
+<form method="post">
+<div class="col-12 px-9">
+    <table class="table">
+        <tr>
+            <td>Username:</td>
+            <td><input id="username" name="username" type="text" placeholder="{{ name[0] }}"></td>
+        </tr>
+        <tr>
+            <td>Email:</td>
+            <td><input id="email" name="email" type="text" placeholder="{{ name[1] }}"></td>
+        </tr>
+        <tr>
+            <td>Password:</td>
+            <td><input id="password" name="password" type="password" required></td>
+        </tr>
+        <tr>
+            <td>Repeat the Password:</td>
+            <td><input id="re_password" name="re_password" type="password" required></td>
+        </tr>
+    </table>
+    {% if msg %}
+    <div style="color: red">
+        {{ msg }}
+    </div>
+    {% endif %}
+<button class="btn-danger" type="submit">Submit changes</button>
+</div>
+</form>
+
+{% endblock %}
