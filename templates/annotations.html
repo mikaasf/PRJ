@@ -150,7 +150,50 @@
                 }
             }, 3000);  // After 3 secs
         });
+
+    const videoElem = document.querySelector("#videoElement");
+    socket.on("vid", (msg) => {
+        videoElem.src = "data:image/jpg;base64," + msg.video;
     });
 
-</script>
+    window.onbeforeunload = function () {
+        socket.emit('leaveRecording');
+    }
+  });
 
+  function startRecording() {
+    if (document.getElementById("changeRec").innerHTML === "Stop &amp; save recording") {
+        isRecording = false;
+        let form = document.createElement("form");
+        form.setAttribute("method", "post");
+        let container = document.getElementById("video_controls");
+        let elements = [container.childElementCount];
+        let j = 0;
+        while (container.hasChildNodes()) {
+            elements[j] = (container.removeChild(container.lastChild));
+            j++;
+        }
+        for (let i = 0; i < elements.length; i++) {
+            form.appendChild(elements[i]);
+            console.log(elements[i]);
+        }
+        document.getElementById("video_controls").appendChild(form);
+        return;
+    }
+
+    recordTimer = new Date().getTime();
+    socket.emit("start_recording", {});
+
+    document.getElementById("timer").style.display = "inline";
+    start();
+
+    isRecording = true;
+    startingTime = new Date().getTime() / 1000;
+    let rec_light = document.getElementById("rec");
+    let rec_button = document.getElementById("changeRec");
+    rec_light.classList.toggle("Rec");
+    rec_button.classList.toggle("btn-danger");
+    rec_button.classList.toggle("stop");
+    document.getElementById("changeRec").innerHTML = "Stop & save recording";
+}
+</script>

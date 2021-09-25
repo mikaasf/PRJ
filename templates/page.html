@@ -3,62 +3,8 @@
 {% block head %}
 
 <title>Video - Recording</title>
-  <script type="text/javascript">
-
-    let counter = 0;
-    let socket;
-    let isRecording = false;
-    let emotionTimer = 0;
-
-         $(document).ready(function() {
-           // sending a connect request to the server.
-           socket = io();
-           socket.on('connect', function (){
-             socket.emit('my event', {data:"I'm connected"});
-           });
-
-
-           // An event handler for a change of value
-           $('input.ann').on('keydown', function (event) {
-               if (event.key === 'Enter') {
-                 if(isRecording) {
-                   counter = new Date().getTime() / 1000 - startingTime;
-
-                 socket.emit('customInput', {
-                   type: $(this).attr('id'),
-                   data: $(this).val(),
-                   frameID: counter
-
-                 });
-               } else {
-                  alert("You must start recording first");
-                 }
-               document.querySelector("#custom").innerHTML = "";
-             }
-
-           });
-
-           // An event handler for a change of value
-           $('button.stop').on('click', function (event) {
-             socket.emit('stop_recording', {
-               title: $('input#vid_title').val()
-             });
-           });
-
-         });
-
-         const videoElem = document.querySelector("#videoElement");
-          socket.on("vid", (msg) => {
-            videoElem.src = "data:image/jpg;base64," + Base64.encode(msg.video);
-            console.log(msg.video.size)
-          });
-
-         window.onbeforeunload = function () {
-           socket.emit('leaveRecording');
-         }
-      </script>
+  
 {% endblock %}
-
 
 {% block body %}
   <section>
@@ -81,10 +27,53 @@
   </section>
 <script type="text/javascript">
   let startingTime;
-
   let startTime;
   let elapsedTime = 0;
   let timerInterval;
 
+  let counter = 0;
+  let isRecording = false;
+  let emotionTimer = 0;
+  let recordTimer = 0;
+  let annotationLeftTimeStamp = 0;
+
+  let vid;
+
+  $(document).ready(function () {
+        // sending a connect request to the server.
+        socket.on('connect', function () {
+            socket.emit('my event', {data: "I'm connected"});
+        });
+
+
+        // An event handler for a change of value
+        $('input.ann').on('keydown', function (event) {
+          console.log("entrei");
+            if (event.key === 'Enter') {
+                if (isRecording) {
+                    counter = new Date().getTime() / 1000 - startingTime;
+
+                    socket.emit('customInput', {
+                        type: $(this).attr('id'),
+                        data: $(this).val(),
+                        frameID: counter
+
+                    });
+                } else {
+                    alert("You must start recording first");
+                }
+                document.querySelector("#custom").innerHTML = "";
+            }
+
+        });
+
+        // An event handler for a change of value
+        $('button.stop').on('click', function (event) {
+            socket.emit('stop_recording', {
+                title: $('input#vid_title').val()
+            });
+        });
+
+    });
 </script>
 {% endblock %}

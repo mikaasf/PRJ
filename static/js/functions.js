@@ -1,38 +1,5 @@
 // page.html
 
-function startRecording() {
-    if (document.getElementById("changeRec").innerHTML === "Stop &amp; save recording") {
-        isRecording = false;
-        let form = document.createElement("form");
-        form.setAttribute("method", "post");
-        let container = document.getElementById("video_controls");
-        let elements = [container.childElementCount];
-        let j = 0;
-        while (container.hasChildNodes()) {
-            elements[j] = (container.removeChild(container.lastChild));
-            j++;
-        }
-        for (let i = 0; i < elements.length; i++) {
-            form.appendChild(elements[i]);
-            console.log(elements[i]);
-        }
-        document.getElementById("video_controls").appendChild(form);
-        return;
-    }
-
-    document.getElementById("timer").style.display = "inline";
-    start();
-
-    isRecording = true;
-    startingTime = new Date().getTime() / 1000;
-    let rec_light = document.getElementById("rec");
-    let rec_button = document.getElementById("changeRec");
-    rec_light.classList.toggle("Rec");
-    rec_button.classList.toggle("btn-danger");
-    rec_button.classList.toggle("stop");
-    document.getElementById("changeRec").innerHTML = "Stop & save recording";
-}
-
 function timeToString(time) {
     let diffInHours = time / 3600000;
     let hh = Math.floor(diffInHours);
@@ -50,9 +17,9 @@ function timeToString(time) {
     return `${formattedHH}:${formattedMM}:${formattedSS}`;
 }
 
-let startTime;
-let elapsedTime = 0;
-let timerInterval;
+// let startTime;
+// let elapsedTime = 0;
+// let timerInterval;
 
 function print(txt) {
     document.getElementById("timer").innerHTML = txt;
@@ -73,6 +40,9 @@ function camOff(videoElem) {
 // annotations.html
 
 function toggleButton(element) {
+
+    console.log(annotationLeftTimeStamp)
+
     let emotionButtons = document.querySelectorAll(".emoticons");
     // Check to see if the button is pressed
     let pressed = (element.getAttribute("aria-pressed") === "true");
@@ -80,8 +50,8 @@ function toggleButton(element) {
     if (pressed) {
         console.log("unselected " + element.id);
         element.parentElement.style.background = "";
-        if (vid == null) {
-            counter = new Date().getTime() / 1000 - startingTime - emotionTimer;
+        if (vid === undefined) {
+            counter = new Date().getTime() - recordTimer - emotionTimer;
         }
         if (counter < emotionTimer) {
             let temp = counter;
@@ -89,13 +59,28 @@ function toggleButton(element) {
             emotionTimer = temp;
         }
         let duration = counter - emotionTimer;
+
+        if (vid === undefined) {
+            duration = (new Date().getTime()) - recordTimer - annotationLeftTimeStamp;
+
+            annotationLeftTimeStamp = annotationLeftTimeStamp / 1000;
+            duration = duration / 1000;
+
+            console.log("annotationLeftTimeStamp: " + annotationLeftTimeStamp)
+            console.log("duration: " + duration)
+
+        } else if (vid !== undefined) {
+            annotationLeftTimeStamp = emotionTimer;
+        }
+
         socket.emit('emotionButton', {
             type: $(element).attr('id'),
-            frameID: emotionTimer,
+            frameID: annotationLeftTimeStamp,
             duration: duration
         });
+
         console.log(newID);
-        addAnnotationToList([element.id, {'id': newID}, emotionTimer, duration], true);
+        addAnnotationToList([element.id, {'id': newID}, annotationLeftTimeStamp, duration], true);
     } else {
         for (let i = 0; i < emotionButtons.length; i++) {
             if (emotionButtons.item(i) !== element)
@@ -105,10 +90,10 @@ function toggleButton(element) {
                 emotionButtons.item(i).setAttribute("aria-pressed", "false");
             }
         }
-        if (vid != null) {
+        if (vid !== undefined) {
             emotionTimer = vid.currentTime;
         } else {
-            emotionTimer = new Date().getTime() / 1000 - startingTime;
+            annotationLeftTimeStamp = new Date().getTime() - recordTimer;
         }
         element.parentElement.style.background = "greenyellow";
 

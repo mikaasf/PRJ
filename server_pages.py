@@ -17,6 +17,8 @@ from send_frame_handler import SendFrame
 from urllib.parse import urlparse, urljoin
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+import pathlib
+import platform
 
 TEMP_DIRECTORY = os.path.join(".", "static", "temp")  # "./static/temp"
 UPLOAD_DIRECTORY = os.path.join(".", "static", "videos")  # "./static/videos"
@@ -306,12 +308,12 @@ def home():
             location = ""
         id_video = session['idVideo']
         generate_json_range(id_video)
-        insert_video_db(session['username'], None, "video_" + id_video, recTime, location, vid_title, session['idVideo'])
-        return redirect(url_for('after_recording', idVideo=session['idVideo']))
+        # insert_video_db(session['username'], None, "video_" + str(id_video) + ".mp4", recTime, location, vid_title, session['idVideo'], False)
+        return redirect(url_for('myvideos'))
     if 'username' in session:
         if not com_socket_handler:
             session['idVideo'] = get_and_increment_current_video_id()
-            com_socket_handler = SendFrame(socketio, session['idVideo'])
+            com_socket_handler = SendFrame(socketio, session['idVideo'], create_thumbnail)
             com_socket_handler.start()
         return render_template("page.html", page='on_rec',
                                name=get_user_data())
@@ -439,7 +441,8 @@ def allowed_file(filename: str) -> bool:
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
-def insert_video_db(user: str, file, path: str, rec_time: str, location: str, titulo: str = None, id_video: int = None):
+def insert_video_db(user: str, file, path: str, rec_time: str, location: str, titulo: str = None, id_video: int = None, 
+                    is_to_create_thumbnail=True):
     if not titulo and file:
         titulo = secure_filename(file.filename)
     if not id_video:
@@ -448,7 +451,7 @@ def insert_video_db(user: str, file, path: str, rec_time: str, location: str, ti
     insert("INSERT INTO video values (%s, %s, %s, %s, %s, %s, %s)",
            [id_video, datetime.today().strftime('%Y-%m-%d %H:%M:%S'), titulo, user,
             video_path, rec_time, location])
-    return create_thumbnail(video_path, id_video), id_video
+    return create_thumbnail(video_path, id_video), id_video if is_to_create_thumbnail else None
 
 
 def create_thumbnail(video_path: str, id_video: int) -> str:
@@ -497,7 +500,14 @@ def after_recording(idVideo):
                 [session['username'], idVideo])
             if not os.path.exists(video[4]):
                 return make_response('Unavailable video', 400)
-            path = str(video[4]).split("static/")[1]
+            
+            if platform.system() == "Windows":
+                path = pathlib.PureWindowsPath(r'' + str(video[4]))
+                path = str(path.as_posix()).split("static/")[1]
+                
+            elif platform.system() == "Darwin":
+                path = str(video[4]).split(os.path.join("static", ""))[1]
+            
             return render_template('after_recording.html', page='pos_rec', name=get_user_data(),
                                    video=video, path=path)
         else:
@@ -589,7 +599,7 @@ def id_request_reply():
 @socketio.on('ask for json')
 def json_request_reply():
     if 'idVideo' in session:
-        json_path = os.path.join(JSON_DIRECTORY, "vid_an" + session['idVideo'] + ".json")
+        json_path = os.path.join(JSON_DIRECTORY, "vid_an" + str(session['idVideo']) + ".json")
         if os.path.exists(json_path):
             file = open(json_path, 'r')
             json_file = json.load(file)  # else socketio.emit("annotations_json", "")
@@ -599,6 +609,12 @@ def json_request_reply():
         myvideos()
 
 
+@socketio.on('start_recording')
+def start_recording( _ ):
+    global com_socket_handler
+    com_socket_handler.start_recording()
+    insert_video_db(session['username'], None, "video_" + str(session['idVideo']) + ".mp4", None, None, "", session['idVideo'], False)
+
 # Handler for a message received over 'leaveRecording' channel
 @socketio.on('leaveRecording')
 def leave_recording():
@@ -606,6 +622,7 @@ def leave_recording():
     print("left Recording")
     # session.pop('idVideo', None)
     # com_socket_handler.close_socket()
+    com_socket_handler = None
 
 
 # Handler for a message received over 'deepface_start' channel
@@ -648,10 +665,15 @@ def generate_json_range(id_video: int):
     emotions_arr = np.array([])
     custom_arr = np.array([])
     others_arr = np.array([])
+    
+    print(annotations)
 
     if annotations.size > 0:
         # lists of emotions, custom and other annotations for the current video
         bool_array_emotions = np.isin(annotations[:, 0], emotions)
+        
+        print(bool_array_emotions)
+        
         emotions_arr = annotations[bool_array_emotions, 0:4]
 
         bool_array_custom = np.isin(annotations[:, 0], custom)
@@ -680,11 +702,14 @@ def generate_json_range(id_video: int):
     json_vid["other_data"] = {}
 
     string_json = json.dumps(json_vid)
+    
+    print(json_vid)    
+    print(string_json)
+    
     with open(os.path.join(JSON_DIRECTORY, filename) + '.json', 'w') as f:
         f.write(string_json)
     return string_json
 
 
 if __name__ == "__main__":
-    # app.run(debug=True, port=5001, threaded=True)
     socketio.run(app, host="127.0.0.1", debug=True, port=5000)

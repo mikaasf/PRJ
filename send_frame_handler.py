@@ -30,7 +30,7 @@ elif platform.system() == "Darwin":
 
 class SendFrame(threading.Thread):
 
-    def __init__(self, server_socket: SocketIO, id_video: str):
+    def __init__(self, server_socket: SocketIO, id_video: str, create_thumb):
         threading.Thread.__init__(self)
 
         # IP port ID
@@ -44,9 +44,10 @@ class SendFrame(threading.Thread):
             socket.AF_INET, socket.SOCK_DGRAM)
         self.__socket.bind(self.__con)
 
-        # filenames and paths
+        # Paths
         self.__videos_path: str = os.path.join("static", "videos")
         self.__temp_path: str = os.path.join("static", "temp")
+        self.__thumb_path: str = os.path.join("static", "videos", "thumbnails")
 
         # PyAudio object
         self.__p = pyaudio.PyAudio()
@@ -74,6 +75,9 @@ class SendFrame(threading.Thread):
 
         # Id video for video path
         self.__id_video: str = id_video
+        
+        # Thumbnail creator function
+        self.__create_thumb = create_thumb
 
     def send_data(self):
 
@@ -157,8 +161,8 @@ class SendFrame(threading.Thread):
             elapsed_time = self.__finish_time - self.__start_time
             recorded_fps = self.__frame_counts / elapsed_time
 
-            final_output_filename: str = "video_" + self.__id_video
-
+            final_output_filename: str = "video_" + str(self.__id_video) + ".mp4"
+            
             # Remux recorded video
             if abs(recorded_fps - 25) >= .01:
                 cmd = FFMPEG_LOCATION + " -r " + \
@@ -170,15 +174,20 @@ class SendFrame(threading.Thread):
                 cmd = FFMPEG_LOCATION + " -ac 2 -channel_layout stereo -i " + os.path.join(self.__temp_path, TEMP_WAV_OUTPUT_FILENAME) + \
                       " -i " + os.path.join(self.__temp_path, REMUX_TEMP_VID_OUTPUT_FILENAME) + \
                       " -pix_fmt yuv420p " + \
-                      os.path.join(self.__videos_path, final_output_filename) + ".mp4 -loglevel quiet"
+                      os.path.join(self.__videos_path, final_output_filename) + " -loglevel quiet"
+                      
+                print(cmd)
                 subprocess.call(cmd, shell=True)
 
             # Mux recorded video
             else:
                 cmd = FFMPEG_LOCATION + " -ac 2 -channel_layout stereo -i " + os.path.join(self.__temp_path, TEMP_WAV_OUTPUT_FILENAME) + \
                       " -i " + os.path.join(self.__temp_path, TEMP_VID_OUTPUT_FILENAME) + " -pix_fmt yuv420p " + \
-                      os.path.join(self.__videos_path, final_output_filename) + ".mp4 -loglevel quiet"
+                      os.path.join(self.__videos_path, final_output_filename) + " -loglevel quiet"
+                print(cmd)
                 subprocess.call(cmd, shell=True)
+                
+            self.__create_thumb(os.path.join(self.__videos_path, final_output_filename), int(self.__id_video))
 
         # Close socket and end thread lifecycle
         self.__socket.close()
