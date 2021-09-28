@@ -41,8 +41,6 @@ function camOff(videoElem) {
 
 function toggleButton(element) {
 
-    console.log(annotationLeftTimeStamp)
-
     let emotionButtons = document.querySelectorAll(".emoticons");
     // Check to see if the button is pressed
     let pressed = (element.getAttribute("aria-pressed") === "true");
@@ -65,9 +63,6 @@ function toggleButton(element) {
 
             annotationLeftTimeStamp = annotationLeftTimeStamp / 1000;
             duration = duration / 1000;
-
-            console.log("annotationLeftTimeStamp: " + annotationLeftTimeStamp)
-            console.log("duration: " + duration)
 
         } else if (vid !== undefined) {
             annotationLeftTimeStamp = emotionTimer;
